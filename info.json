@@ -1,0 +1,11 @@
+{
+  "name": "AutoTrainDepot",
+  "version": "0.0.1",
+  "title": "AutoTrainDepot",
+  "author": "Reika",
+  "contact": "",
+  "homepage": "",
+  "factorio_version" : "0.16",
+  "description": "Adds a storage depot controller designed for use in train stations, which can take large quantities of multiple item types and allow for belt-based dynamic train systems.",
+  "dependencies": ["base >= 0.16.0"]
+}
