@@ -114,107 +114,109 @@ local function getLoaderFeed(loader)
 end
 
 local function getInputThreshold(depot, item)
-	local n = depot.slotsPerType == 1 and depot.slotsPerType or depot.slotsPerType-0.1 --the slight reduction is to ensure does not spill over due to latency; some still inbound
-	return math.floor(n*game.item_prototypes[item].stack_size)
+	return math.floor((depot.slotsPerType-0.1)*game.item_prototypes[item].stack_size) --the slight reduction is to ensure does not spill over due to latency; some still inbound
 end
 
 local function getInputBelts(depot)
 	if not depot.inputs then depot.inputs = {} end
 	if not depot.indices then depot.indices = {} end
-
-	local d = 1--loader and 3 or 1
-	local area = game.entity_prototypes[depot.storage.name].collision_box
-	area.left_top.x = area.left_top.x-d+depot.storage.position.x
-	area.right_bottom.x = area.right_bottom.x+d+depot.storage.position.x
-	area.left_top.y = area.left_top.y-d+depot.storage.position.y
-	area.right_bottom.y = area.right_bottom.y+d+depot.storage.position.y
 	
-	local feed = {}
-	
-	--[[
-	local belts = depot.storage.surface.find_entities_filtered({type = "transport-belt", area = area, force = depot.storage.force})
-	for _,belt in pairs(belts) do
-		if isOnSide(belt, depot.storage) then
-			local reqdir = getRequiredBeltDirection(belt, depot.storage)
-			--game.print("Found a belt " .. belt.name .. " @ " .. belt.position.x .. " , " .. belt.position.y .. " , facing " .. belt.direction .. " compared to req " .. reqdir)
-			if reqdir == belt.direction then
-				--game.print("Belt is feeding.")
-				table.insert(feed, belt)
-			end
-		end
-	end
-	--]]
-	
-	local inserters = depot.storage.surface.find_entities_filtered({type = "inserter", area = area, force = depot.storage.force})
-	for _,inserter in pairs(inserters) do
-		if isOnSide(inserter, depot.storage) then
-			local reqdir = getRequiredInserterDirection(inserter, depot.storage)
-			--game.print("Found a inserter " .. inserter.name .. " @ " .. inserter.position.x .. " , " .. inserter.position.y .. " , facing " .. inserter.direction .. " compared to req " .. reqdir)
-			if reqdir == inserter.direction then
-				--game.print("Inserter is feeding.")
-				table.insert(feed, inserter)
-			end
-		end
-	end
-	
-	local loaders = depot.storage.surface.find_entities_filtered({type = "loader", area = area, force = depot.storage.force})
-	for _,loader in pairs(loaders) do
-		if isOnSide(loader, depot.storage) then
-			local reqdir = getRequiredBeltDirection(loader, depot.storage)
-			--game.print("Found a loader " .. loader.name .. " @ " .. loader.position.x .. " , " .. loader.position.y .. " , facing " .. loader.direction .. " compared to req " .. reqdir)
-			if reqdir == loader.direction--[[ and loader_type == "input"--]] then
-				--game.print("Loader is feeding.")
-				local belt = getLoaderFeed(loader)
-				if belt then
-					--game.print("Loader has a belt")
+	for _,storage in pairs(depot.storages) do
+		local d = 1--loader and 3 or 1
+		local area = game.entity_prototypes[storage.name].collision_box
+		area.left_top.x = area.left_top.x-d+storage.position.x
+		area.right_bottom.x = area.right_bottom.x+d+storage.position.x
+		area.left_top.y = area.left_top.y-d+storage.position.y
+		area.right_bottom.y = area.right_bottom.y+d+storage.position.y
+		
+		local feed = {}
+		
+		--[[
+		local belts = storage.surface.find_entities_filtered({type = "transport-belt", area = area, force = storage.force})
+		for _,belt in pairs(belts) do
+			if isOnSide(belt, storage) then
+				local reqdir = getRequiredBeltDirection(belt, storage)
+				--game.print("Found a belt " .. belt.name .. " @ " .. belt.position.x .. " , " .. belt.position.y .. " , facing " .. belt.direction .. " compared to req " .. reqdir)
+				if reqdir == belt.direction then
+					--game.print("Belt is feeding.")
 					table.insert(feed, belt)
 				end
 			end
 		end
-	end
-	
-	for _,feed in pairs(feed) do -- can be belt OR inserter, nothing else
-		if (not depot.inputCount or depot.inputCount < depot.typeLimit) and not depot.inputs[feed.unit_number] then --prevent duplicate or too many entries
-			local item = nil
-			if feed.type == "transport-belt" then
-				local line = feed.get_transport_line(1)
-				item = line.get_item_count() > 0 and line[1] or item
-				if not item then
-					line = feed.get_transport_line(2)
-					item = line.get_item_count() > 0 and line[1] or item
+		--]]
+		
+		local inserters = storage.surface.find_entities_filtered({type = "inserter", area = area, force = storage.force})
+		for _,inserter in pairs(inserters) do
+			if isOnSide(inserter, storage) then
+				local reqdir = getRequiredInserterDirection(inserter, storage)
+				--game.print("Found a inserter " .. inserter.name .. " @ " .. inserter.position.x .. " , " .. inserter.position.y .. " , facing " .. inserter.direction .. " compared to req " .. reqdir)
+				if reqdir == inserter.direction then
+					--game.print("Inserter is feeding.")
+					table.insert(feed, inserter)
 				end
-				item = (item and item.valid_for_read) and item.name or nil
-			else
-				item = feed.filter_slot_count > 0 and feed.get_filter(1) or nil --use filters first, but override with actual held items
-				item = feed.held_stack and feed.held_stack.valid_for_read and feed.held_stack.name or item
 			end
-			
-			--game.print("Found " .. (item and item or "nil") .. " for " .. feed.name)
-			if item then
-				if depot.indices[item] then --do not allow two inputs of same item
-					feed.active = false
-				else
-					depot.storage.connect_neighbour({wire = depot.wire, target_entity = feed})
-					
-					local control = feed.get_or_create_control_behavior()
-					if control.type == defines.control_behavior.type.transport_belt then
-						control.enable_disable = true
-						control.read_contents = false
-					elseif control.type == defines.control_behavior.type.inserter then
-						control.circuit_read_hand_contents = false
-						control.circuit_set_stack_size = false
-						--control.circuit_stack_control_signal = nil
-						control.circuit_mode_of_operation = defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable
+		end
+		
+		local loaders = storage.surface.find_entities_filtered({type = "loader", area = area, force = storage.force})
+		for _,loader in pairs(loaders) do
+			if isOnSide(loader, storage) then
+				local reqdir = getRequiredBeltDirection(loader, storage)
+				--game.print("Found a loader " .. loader.name .. " @ " .. loader.position.x .. " , " .. loader.position.y .. " , facing " .. loader.direction .. " compared to req " .. reqdir)
+				if reqdir == loader.direction--[[ and loader_type == "input"--]] then
+					--game.print("Loader is feeding.")
+					local belt = getLoaderFeed(loader)
+					if belt then
+						--game.print("Loader has a belt")
+						table.insert(feed, belt)
 					end
-					control.connect_to_logistic_network = false
-					
-					depot.inputCount = depot.inputCount and depot.inputCount+1 or 1
-					
-					local thresh = getInputThreshold(depot, item)
-					control.circuit_condition = {condition={comparator="<", first_signal={type="item", name=item}, constant=thresh}}
-					
-					depot.inputs[feed.unit_number] = {item = item, entity = feed, limit = thresh}
-					depot.indices[item] = feed.unit_number
+				end
+			end
+		end
+		
+		for _,feed in pairs(feed) do -- can be belt OR inserter, nothing else
+			if (not depot.inputCount or depot.inputCount < depot.typeLimit) and not depot.inputs[feed.unit_number] then --prevent duplicate or too many entries
+				local item = nil
+				if feed.type == "transport-belt" then
+					local line = feed.get_transport_line(1)
+					item = line.get_item_count() > 0 and line[1] or item
+					if not item then
+						line = feed.get_transport_line(2)
+						item = line.get_item_count() > 0 and line[1] or item
+					end
+					item = (item and item.valid_for_read) and item.name or nil
+				else
+					item = feed.filter_slot_count > 0 and feed.get_filter(1) or nil --use filters first, but override with actual held items
+					item = feed.held_stack and feed.held_stack.valid_for_read and feed.held_stack.name or item
+				end
+				
+				--game.print("Found " .. (item and item or "nil") .. " for " .. feed.name)
+				if item then
+					if depot.indices[item] then --do not allow two inputs of same item
+						feed.active = false
+					else
+						feed.active = true --turn any disabled entities back on, and enable any unloaders
+						storage.connect_neighbour({wire = depot.wire, target_entity = feed})
+						
+						local control = feed.get_or_create_control_behavior()
+						if control.type == defines.control_behavior.type.transport_belt then
+							control.enable_disable = true
+							control.read_contents = false
+						elseif control.type == defines.control_behavior.type.inserter then
+							control.circuit_read_hand_contents = false
+							control.circuit_set_stack_size = false
+							--control.circuit_stack_control_signal = nil
+							control.circuit_mode_of_operation = defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable
+						end
+						control.connect_to_logistic_network = false
+						
+						depot.inputCount = depot.inputCount and depot.inputCount+1 or 1
+						
+						local thresh = getInputThreshold(depot, item)
+						control.circuit_condition = {condition={comparator="<", first_signal={type="item", name=item}, constant=thresh}}
+						
+						depot.inputs[feed.unit_number] = {item = item, entity = feed, limit = thresh}
+						depot.indices[item] = feed.unit_number
+					end
 				end
 			end
 		end
@@ -234,7 +236,7 @@ end
 
 local function setTypeLimit(depot, cats)
 	depot.typeLimit = cats
-	depot.slotsPerType = math.max(1, math.floor(#(depot.storage.get_inventory(defines.inventory.chest))/cats))
+	depot.slotsPerType = math.max(1, math.floor(depot.slotCount/cats))
 	if depot.inputs then
 		for unit,input in pairs(depot.inputs) do
 			local val = getInputThreshold(depot, input.item)
@@ -246,43 +248,31 @@ local function setTypeLimit(depot, cats)
 			control.circuit_condition = {condition={comparator="<", first_signal={type="item", name=input.item}, constant=input.limit}}
 		end
 	end
-	--game.print("Set controller (linked to " .. depot.storage.name .. ") with " .. cats .. " divisions")
+	game.print("Set controller (linked to " .. depot.storageCount .. " storages totalling " .. depot.slotCount .. " slots) with " .. cats .. " divisions -> " .. depot.slotsPerType .. " slots per type")
 end
 
 local function updateTypeLimit(depot)
 	local cats = getCombinatorOutput(depot.controller)
+	--game.print("Combinator reads " .. cats)
 	if cats ~= depot.typeLimit then
 		setTypeLimit(depot, cats)
 	end
 end
 
-local function tickDepot(depot)
-	getInputBelts(depot)
-	updateTypeLimit(depot)
-	
-	for i,input in ipairs(depot.inputs) do
-		if not input.entity.valid then
-			table.remove(depot.inputs, i)
-			depot.indices = {}
-			for _,entry in depot.inputs do
-				depot.indices[entry.item] = entry.entity.unit_number
-			end
-			break
-		end
-	end
-end
-
 local function bindController(entry, chest, wire)
+	if entry.storages[chest.unit_number] == chest then return end
 	local cats = getCombinatorOutput(entry.controller)--read combinator
-	entry.storage = chest
+	entry.storages[chest.unit_number] = chest
+	local has = entry.slotCount and entry.slotCount or 0
+	entry.slotCount = has+#chest.get_inventory(defines.inventory.chest)
+	entry.storageCount = entry.storageCount and entry.storageCount+1 or 1
 	entry.wire = wire
 	setTypeLimit(entry, cats)
 	--entry.controller.connect_neighbour({wire = defines.wire_type.green, target_entity = chest})
-	--game.print("Linked controller to " .. chest.name .. ", with " .. cats .. " divisions")
-	entry.pending = false
+	game.print("Linked controller to " .. chest.name .. " (now has " .. entry.storageCount .. "), with " .. cats .. " divisions among a total of " .. entry.slotCount .. " slots")
 end
 
-local function checkEntityConnections(check, wire, path)
+local function checkEntityConnections(ret, check, wire, path)
 	if not path then path = {} end
 	path[#path+1] = check
 	local net = check.circuit_connected_entities
@@ -291,11 +281,11 @@ local function checkEntityConnections(check, wire, path)
 	if data then
 		for _,entity in pairs(data) do
 			if entity.type == "container" or entity.type == "logistic-container" then
-				return entity
+				table.insert(ret, {entity = entity, wire = wire})
 			end
 		end
 		
-		for _,entity in pairs(data) do --found nothing? try recursion along connected wire, except for ones already in our path
+		for _,entity in pairs(data) do --try recursion along connected wire, except for ones already in our path
 			local back = false
 			for _,p in pairs(path) do
 				if p == entity then
@@ -304,24 +294,62 @@ local function checkEntityConnections(check, wire, path)
 				end
 			end
 			if not back then
-				local ret = checkEntityConnections(entity, wire, path)
-				if ret then return ret end
+				local rec = checkEntityConnections(ret, entity, wire, path)
+				if rec then
+					table.insert(ret, {entity = rec, wire = wire})
+				end
 			end
 		end
 	end
 end
 
 local function checkConnections(entry)
-	local entity = checkEntityConnections(entry.controller, defines.wire_type.red)
-	if entity then
-		bindController(entry, entity, defines.wire_type.red)
-		return
+	if not entry.storages then entry.storages = {} end
+
+	for unit,storage in pairs(entry.storages) do
+		if not storage or not storage.valid then
+			entry.storages[unit] = nil
+		end
+	end
+
+	local li = {}
+
+	if entry.wire ~= defines.wire_type.green then
+		checkEntityConnections(li, entry.controller, defines.wire_type.red)
 	end
 	
-	entity = checkEntityConnections(entry.controller, defines.wire_type.green)
-	if entity then
-		bindController(entry, entity, defines.wire_type.green)
-		return
+	if #li == 0 then
+		if entry.wire ~= defines.wire_type.red then
+			checkEntityConnections(li, entry.controller, defines.wire_type.green)
+		end
+	end
+	
+	for _,found in pairs(li) do
+		bindController(entry, found.entity, found.wire)
+	end
+end
+
+local function tickDepot(depot)
+	checkConnections(depot)
+	
+	if depot.storageCount and depot.storageCount > 0 then
+		getInputBelts(depot)
+		updateTypeLimit(depot)
+	else
+		depot.typeLimit = 0
+	end
+	
+	if depot.inputs then
+		for i,input in ipairs(depot.inputs) do
+			if not input.entity.valid then
+				table.remove(depot.inputs, i)
+				depot.indices = {}
+				for _,entry in pairs(depot.inputs) do
+					depot.indices[entry.item] = entry.entity.unit_number
+				end
+				break
+			end
+		end
 	end
 end
 
@@ -329,6 +357,7 @@ script.on_event(defines.events.on_tick, function(event)
 	if event.tick%tickRate == 0 then
 		local depot = global.depot
 		for i, entry in ipairs(depot.entries) do
+		
 			local control = entry.controller.get_control_behavior()
 			local set = control.get_signal(1)
 			if not set or not set.signal then
@@ -336,18 +365,9 @@ script.on_event(defines.events.on_tick, function(event)
 			elseif set.signal.name ~= "depot-divisions" then
 				control.set_signal(1, {signal = {type = "virtual", name = "depot-divisions"}, count = set.signal.count})
 			end
-		
-			if entry.pending then
-				checkConnections(entry)
-			else
-				if not (entry.storage and entry.storage.valid) then
-					--game.print("Clearing invalid depot")
-					table.remove(depot.entries, i)
-				else
-					--game.print("Ticking depot " .. entry.storage.name)
-					tickDepot(entry)
-				end
-			end
+			
+			--game.print("Ticking depot " .. entry.storage.name)
+			tickDepot(entry)
 		end
 	end
 end)
@@ -394,8 +414,10 @@ end
 local function onEntityAdded(entity)
 	if entity.name == "depot-controller" then
 		local depot = global.depot
-		local entry = {controller = entity, pending = true}
+		local entry = {controller = entity, storages = {}}
 		table.insert(depot.entries, entry)
+	elseif entity.name == "train-unloader" then
+		entity.active = false
 	end
 end
 

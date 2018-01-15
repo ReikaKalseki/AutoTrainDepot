@@ -44,9 +44,9 @@ if data.raw.container["angels-warehouse"] then
 				item.name = name
 				item.place_result = name
 				chest.minable.result = item.name
-				chest.icon = "__Depot__/graphics/icons/warehouse" .. type .. ".png"
+				chest.icon = "__AutoTrainDepot__/graphics/icons/warehouse" .. type .. ".png"
 				item.icon = chest.icon
-				chest.picture.filename = "__Depot__/graphics/entity/warehouse" .. type .. ".png"
+				chest.picture.filename = "__AutoTrainDepot__/graphics/entity/warehouse" .. type .. ".png"
 				local recipe = table.deepcopy(data.raw.recipe["angels-warehouse-requester"])
 				recipe.name = name
 				recipe.result = name

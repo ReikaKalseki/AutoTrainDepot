@@ -1,10 +1,8 @@
-require "constants"
-
 data:extend({
   {
 	type = "item",
 	name = "depot-controller",
-	icon = "__Depot__/graphics/icons/depot-controller.png",
+	icon = "__AutoTrainDepot__/graphics/icons/depot-controller.png",
 	icon_size = 32,
     flags = {"goes-to-quickbar"},
     subgroup = "storage",
@@ -20,9 +18,10 @@ data:extend({
     ingredients =
     {
       {"engine-unit", 4},
-      {"steel-plate", 100},
+      {"steel-plate", 80},
       {"fast-transport-belt", 20},
       {"advanced-circuit", 10},
+      {"red-wire", 40},
     },
     result = "depot-controller"
   }
@@ -30,7 +29,7 @@ data:extend({
 
 local function createSprite()
 return {
-        filename = "__Depot__/graphics/entity/depot-controller.png",
+        filename = "__AutoTrainDepot__/graphics/entity/depot-controller.png",
         x = 0,
         y = 0,
         width = 179,
@@ -124,7 +123,7 @@ data:extend({
   { --for display in the circuit gui
     type = "virtual-signal",
     name = "depot-divisions",
-    icon = "__Depot__/graphics/icons/divisions.png",
+    icon = "__AutoTrainDepot__/graphics/icons/divisions.png",
 	icon_size = 32,
     subgroup = "virtual-signal-special",
     order = "depot-divisions",

@@ -9,7 +9,7 @@ data:extend({
 			"logistics-3",
 			"automated-rail-transportation",
 		},
-		icon = "__Depot__/graphics/technology/depot.png",
+		icon = "__AutoTrainDepot__/graphics/technology/depot.png",
 		effects =
 		{
 			{
@@ -30,5 +30,40 @@ data:extend({
 		},
 		order = "[logistics]-3",
 		icon_size = 128,
-		}
+	}
 })
+
+if Config.unloader then
+data:extend({
+	{
+		type = "technology",
+		name = "unloader",
+		prerequisites =
+		{
+			"depot",
+			"inserter-capacity-bonus-3",
+		},
+		icon = "__AutoTrainDepot__/graphics/technology/unloader.png",
+		effects =
+		{
+			{
+				type = "unlock-recipe",
+				recipe = "train-unloader"
+			}
+		},
+		unit =
+		{
+		  count = 250,
+		  ingredients =
+		  {
+			{"science-pack-1", 1},
+			{"science-pack-2", 1},
+			{"science-pack-3", 1},
+		  },
+		  time = 30
+		},
+		order = "[logistics]-3",
+		icon_size = 128,
+	},
+})
+end
