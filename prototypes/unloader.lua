@@ -38,15 +38,24 @@ unloader.max_health = 450
 --unloader.pickup_position = {0, -1.5}
 --unloader.insert_position = {0, 1.7}
 
-unloader.energy_per_movement = 5000 --less in raw value, but given the insane rate of operations... ~500kW
-unloader.energy_per_rotation = 5000
+unloader.energy_per_movement = 7500 --less in raw value, but given the insane rate of operations... 5000 -> 7500 yields 540kW -> 810kW
+unloader.energy_per_rotation = 7500
 unloader.energy_source = {
 	type = "electric",
 	usage_priority = "secondary-input",
-	drain = "5kW"
+	drain = "50kW"
 }
 unloader.extension_speed = 1--0.7--0.07
 unloader.rotation_speed = 0.8--0.4--0.04
+
+--[[
+unloader.stack = false --to avoid being bad until stack size researches are completed?
+unloader.rotation_speed = unloader.rotation_speed*12
+unloader.extension_speed = unloader.extension_speed*12
+unloader.energy_per_rotation = unloader.energy_per_rotation/12
+unloader.energy_per_movement = unloader.energy_per_movement/12
+--]]
+
 unloader.fast_replaceable_group = nil
 unloader.working_sound = {
 	match_progress_to_activity = true,
