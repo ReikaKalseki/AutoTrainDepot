@@ -104,7 +104,7 @@ local function getInputBelts(depot)
 			if inserter.drop_target and inserter.drop_target == storage then
 				--game.print("Inserter is feeding.")
 				table.insert(feed, inserter)
-			elseif inserter.name == "train-unloader" and inserter.direction == (getRequiredBeltDirection(inserter, storage)+4)%8 then --when not active, drop_target is never set
+			elseif (inserter.name == "train-unloader" or inserter.name == "dynamic-train-unloader") and inserter.direction == (getRequiredBeltDirection(inserter, storage)+4)%8 then --when not active, drop_target is never set
 				table.insert(feed, inserter)
 			end
 		end
@@ -170,7 +170,7 @@ local function getInputBelts(depot)
 						depot.inputs[feed.unit_number] = {item = item, entity = feed, limit = thresh, storage = storage}
 						depot.indices[item] = feed.unit_number
 						
-						game.print("Connected " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " for item " .. item)
+						--game.print("Connected " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " for item " .. item)
 					end
 				end
 			end
@@ -180,14 +180,14 @@ end
 
 local function setInputItem(depot, input, item)
 	if input.item ~= item then
-	game.print("Setting input " .. input.entity.name .. " from " .. (input.item and input.item or "nil") .. " to " .. (item and item or "nil"))
+		--game.print("Setting input " .. input.entity.name .. " from " .. (input.item and input.item or "nil") .. " to " .. (item and item or "nil"))
 		local map = depot.indices[input.item]
 		depot.indices[input.item] = nil
 		depot.indices[item] = map
 		
 		input.item = item
 		
-		if input.entity.name == "train-unloader" then
+		if input.entity.name == "dynamic-train-unloader" then
 			input.entity.set_filter(1, item)
 		end
 	end
@@ -321,8 +321,8 @@ local function verifyInputsAndStorages(depot)
 			if not input.entity.valid or not input.storage or not input.storage.valid or not depot.storages[input.storage.unit_number] then
 				depot.inputs[key] = nil
 				rem = true
-				game.print("Removing invalid input " .. key .. " to " .. input.entity.name)
-			elseif input.entity.name == "train-unloader" then
+				--game.print("Removing invalid input " .. key .. " to " .. input.entity.name)
+			elseif input.entity.name == "dynamic-train-unloader" then
 				local src = input.entity.pickup_target
 				if src and src.type == "cargo-wagon" then
 					local inv = src.get_inventory(defines.inventory.cargo_wagon)

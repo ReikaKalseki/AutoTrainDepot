@@ -30,6 +30,35 @@ data:extend({
 		},
 		order = "[logistics]-3",
 		icon_size = 128,
+	},
+	{
+		type = "technology",
+		name = "large-depot",
+		prerequisites =
+		{
+			"depot",
+		},
+		icon = "__AutoTrainDepot__/graphics/technology/depot.png",
+		effects =
+		{
+			{
+				type = "unlock-recipe",
+				recipe = "large-depot"
+			}
+		},
+		unit =
+		{
+		  count = 250,
+		  ingredients =
+		  {
+			{"science-pack-1", 1},
+			{"science-pack-2", 1},
+			{"science-pack-3", 1},
+		  },
+		  time = 20
+		},
+		order = "[logistics]-3",
+		icon_size = 128,
 	}
 })
 
@@ -49,6 +78,10 @@ data:extend({
 			{
 				type = "unlock-recipe",
 				recipe = "train-unloader"
+			},
+			{
+				type = "unlock-recipe",
+				recipe = "dynamic-train-unloader"
 			}
 		},
 		unit =

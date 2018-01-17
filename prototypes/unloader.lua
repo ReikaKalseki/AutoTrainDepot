@@ -100,13 +100,39 @@ local recipe = {
     ingredients =
     {
       {"stack-filter-inserter", 4},
-      {"express-transport-belt", 8},
+      {"express-transport-belt", 3},
       {"steel-chest", 1},
-      {"processing-unit", 10},
+      {"processing-unit", 4},
     },
     result = unloader.name
 }
 
-data:extend({unloader, item, recipe})
+local dynamic = table.deepcopy(unloader)
+local item2 = table.deepcopy(item)
+local recipe2 = table.deepcopy(recipe)
+dynamic.name = "dynamic-" .. dynamic.name
+dynamic.minable.result = dynamic.name
+dynamic.icon = "__AutoTrainDepot__/graphics/icons/dynamic-unloader.png"
+dynamic.platform_picture.sheet.filename = "__AutoTrainDepot__/graphics/entity/dynamic-unloader.png"
+dynamic.platform_picture.sheet.width = 105
+dynamic.platform_picture.sheet.height = 79
+dynamic.collision_box = {{-2.9, -1.4}, {2.9, 1.4}}
+dynamic.selection_box = {{-3, -1.5}, {3, 1.5}}
+dynamic.pickup_position = {-1.7, 0}
+dynamic.insert_position = {1.7, 0}
+
+item2.name = dynamic.name
+item2.icon = dynamic.icon
+item2.place_result = item2.name
+recipe2.name = item2.name
+recipe2.result = recipe2.name
+recipe2.ingredients =
+    {
+      {unloader.name, 6},
+      {"express-transport-belt", 8},
+      {"processing-unit", 25},
+    }
+
+data:extend({unloader, item, recipe, dynamic, item2, recipe2})
 
 --table.insert(data.raw.technology.depot.effects, {type = "unlock-recipe", recipe = unloader.name})
