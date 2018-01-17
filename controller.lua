@@ -1,5 +1,7 @@
 require "config"
 
+local balanceRate = 600 --10s
+
 local function getRequiredBeltDirection(belt, entity)
 	local dx = belt.position.x-entity.position.x
 	local dy = belt.position.y-entity.position.y
@@ -72,9 +74,6 @@ end
 
 local function getInputBelts(depot)
 	if not depot.inputs then depot.inputs = {} end
-	if not depot.outputs then depot.outputs = {} end
-	if not depot.transfers then depot.transfers = {} end
-	if not depot.indices then depot.indices = {} end
 	
 	for _,storage in pairs(depot.storages) do
 		local d = 1--loader and 3 or 1
@@ -85,8 +84,6 @@ local function getInputBelts(depot)
 		area.right_bottom.y = area.right_bottom.y+d+storage.position.y
 		
 		local feed = {}
-		local pull = {}
-		local trans = {}
 		
 		--[[
 		local belts = storage.surface.find_entities_filtered({type = "transport-belt", area = area, force = storage.force})
@@ -105,27 +102,11 @@ local function getInputBelts(depot)
 		local inserters = storage.surface.find_entities_filtered({type = "inserter", area = area, force = storage.force})
 		for _,inserter in pairs(inserters) do
 			--game.print("Found a inserter " .. inserter.name .. " @ " .. inserter.position.x .. " , " .. inserter.position.y .. " , dropping in " .. (inserter.drop_target and inserter.drop_target.name or "none"))
-			if inserter.drop_target and inserter.drop_target == storage then
+			if inserter.drop_target and inserter.drop_target == storage and not (inserter.pickup_target and depot.storages[inserter.pickup_target.unit_number]) then
 				--game.print("Inserter is feeding.")
-				if inserter.pickup_target and depot.storages[inserter.pickup_target] then
-					table.insert(trans, inserter)
-				else
-					table.insert(feed, inserter)
-				end
-			elseif inserter.pickup_target and inserter.pickup_target == storage then
-				if inserter.drop_target and depot.storages[inserter.drop_target] then
-					table.insert(trans, inserter)
-				else
-					table.insert(pull, inserter)
-				end
-			elseif (inserter.name == "train-unloader" or inserter.name == "dynamic-train-unloader") then --when not active, drop_target is never set
-				local pulldir = getRequiredBeltDirection(inserter, storage)
-				local pushdir = (pulldir+4)%8
-				if inserter.direction == pushdir then
-					table.insert(feed, inserter)
-				elseif inserter.direction == pulldir then
-					table.insert(pull, inserter)
-				end
+				table.insert(feed, inserter)
+			elseif (inserter.name == "train-unloader" or inserter.name == "dynamic-train-unloader") and inserter.direction == (getRequiredBeltDirection(inserter, storage)+4)%8 then --when not active, drop_target is never set
+				table.insert(feed, inserter)
 			end
 		end
 		
@@ -163,35 +144,30 @@ local function getInputBelts(depot)
 				
 				--game.print("Found " .. (item and item or "nil") .. " for " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y)
 				if item then
-					if depot.indices[item] then --do not allow two inputs of same item
-						feed.active = false
-					else
-						feed.active = true --turn any disabled entities back on, and enable any unloaders
-						
-						storage.connect_neighbour({wire = depot.wire, target_entity = feed})
-						
-						local control = feed.get_or_create_control_behavior()
-						if control.type == defines.control_behavior.type.transport_belt then
-							control.enable_disable = true
-							control.read_contents = false
-						elseif control.type == defines.control_behavior.type.inserter then
-							control.circuit_read_hand_contents = false
-							control.circuit_set_stack_size = false
-							--control.circuit_stack_control_signal = nil
-							control.circuit_mode_of_operation = defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable
-						end
-						control.connect_to_logistic_network = false
-						
-						depot.inputCount = depot.inputCount and depot.inputCount+1 or 1
-						
-						local thresh = getInputThreshold(depot, item)
-						control.circuit_condition = {condition={comparator="<", first_signal={type="item", name=item}, constant=thresh}}
-						
-						depot.inputs[feed.unit_number] = {item = item, entity = feed, limit = thresh, storage = storage}
-						depot.indices[item] = feed.unit_number
-						
-						--game.print("Connected " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " for item " .. item)
+					feed.active = true --turn any disabled entities back on, and enable any unloaders
+					
+					storage.connect_neighbour({wire = depot.wire, target_entity = feed})
+					
+					local control = feed.get_or_create_control_behavior()
+					if control.type == defines.control_behavior.type.transport_belt then
+						control.enable_disable = true
+						control.read_contents = false
+					elseif control.type == defines.control_behavior.type.inserter then
+						control.circuit_read_hand_contents = false
+						control.circuit_set_stack_size = false
+						--control.circuit_stack_control_signal = nil
+						control.circuit_mode_of_operation = defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable
 					end
+					control.connect_to_logistic_network = false
+					
+					depot.inputCount = depot.inputCount and depot.inputCount+1 or 1
+					
+					local thresh = getInputThreshold(depot, item)
+					control.circuit_condition = {condition={comparator="<", first_signal={type="item", name=item}, constant=thresh}}
+					
+					depot.inputs[feed.unit_number] = {item = item, entity = feed, limit = thresh, storage = storage}
+					
+					--game.print("Connected " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " for item " .. item)
 				end
 			end
 		end
@@ -201,15 +177,12 @@ end
 local function setInputItem(depot, input, item)
 	if input.item ~= item then
 		--game.print("Setting input " .. input.entity.name .. " from " .. (input.item and input.item or "nil") .. " to " .. (item and item or "nil"))
-		local map = depot.indices[input.item]
-		depot.indices[input.item] = nil
-		depot.indices[item] = map
-		
+	
 		input.item = item
 		
-		if input.entity.name == "dynamic-train-unloader" then
+		--if input.entity.name == "dynamic-train-unloader" then
 			input.entity.set_filter(1, item)
-		end
+		--end
 	end
 	
 	local val = getInputThreshold(depot, input.item)
@@ -264,7 +237,20 @@ local function bindController(entry, chest, wire)
 	--game.print("Linked controller to " .. chest.name .. " (now has " .. entry.storageCount .. "), with " .. cats .. " divisions among a total of " .. entry.slotCount .. " slots")
 end
 
-local function checkEntityConnections(ret, check, wire, path)
+local function getConnectedChestForLoopFeed(depot, entity, clr)
+	local net = entity.circuit_connected_entities
+	local data = net and net[clr] or nil
+	if data then
+		for _,found in pairs(data) do
+			if depot.storages[found.unit_number] then
+				return found
+			end
+		end
+	end
+	return nil
+end
+
+local function checkEntityConnections(depot, ret, check, wire, path)
 	if not path then path = {} end
 	path[#path+1] = check
 	local net = check.circuit_connected_entities
@@ -273,7 +259,17 @@ local function checkEntityConnections(ret, check, wire, path)
 	if data then
 		for _,entity in pairs(data) do
 			if entity.type == "container" or entity.type == "logistic-container" then
-				table.insert(ret, {entity = entity, wire = wire})
+				table.insert(ret, {type = "storage", entity = entity, wire = wire})
+			elseif (entity.type == "inserter" or entity.type == "transport-belt") and not depot.loopFeeds[entity.unit_number] then
+				local control = entity.get_control_behavior()
+				if control and control.circuit_condition and control.circuit_condition.condition and control.circuit_condition.condition.first_signal and control.circuit_condition.condition.first_signal.name == "free-inv-slots" then
+					--game.print("Found an entity checking free-inv-slots: " .. entity.name)
+					local read = getConnectedChestForLoopFeed(depot, entity, clr)
+					if read then
+						--game.print("Connected an entity checking free-inv-slots: " .. entity.name .. " @ " .. entity.position.x .. " , " .. entity.position.y)
+						table.insert(ret, {type = "loop", entity = entity, storage = read, wire = wire})
+					end
+				end
 			end
 		end
 		
@@ -286,10 +282,7 @@ local function checkEntityConnections(ret, check, wire, path)
 				end
 			end
 			if not back then
-				local rec = checkEntityConnections(ret, entity, wire, path)
-				if rec then
-					table.insert(ret, {entity = rec, wire = wire})
-				end
+				checkEntityConnections(depot, ret, entity, wire, path)
 			end
 		end
 	end
@@ -297,21 +290,28 @@ end
 
 local function checkConnections(entry)
 	if not entry.storages then entry.storages = {} end
+	if not entry.loopFeeds then entry.loopFeeds = {} end
 
 	local li = {}
 
 	if entry.wire ~= defines.wire_type.green then
-		checkEntityConnections(li, entry.controller, defines.wire_type.red)
+		--game.print("Checking red connections")
+		checkEntityConnections(entry, li, entry.controller, defines.wire_type.red)
 	end
 	
 	if #li == 0 then
 		if entry.wire ~= defines.wire_type.red then
-			checkEntityConnections(li, entry.controller, defines.wire_type.green)
+			checkEntityConnections(entry, li, entry.controller, defines.wire_type.green)
 		end
 	end
 	
 	for _,found in pairs(li) do
-		bindController(entry, found.entity, found.wire)
+		if found.type == "storage" then
+			bindController(entry, found.entity, found.wire)
+		elseif found.type == "loop" then
+			--game.print("Caching loop # " .. found.entity.unit_number)
+			entry.loopFeeds[found.entity.unit_number] = {entity = found.entity, storage = found.storage}
+		end
 	end
 end
 
@@ -330,6 +330,7 @@ local function verifyInputsAndStorages(depot)
 		for unit,storage in pairs(depot.storages) do
 			if not storage or not storage.valid then
 				depot.storages[unit] = nil
+				depot.storageCount = depot.storageCount-1
 			end
 		end
 	end
@@ -341,41 +342,83 @@ local function verifyInputsAndStorages(depot)
 			if not input.entity.valid or not input.storage or not input.storage.valid or not depot.storages[input.storage.unit_number] then
 				depot.inputs[key] = nil
 				rem = true
+				depot.inputCount = depot.inputCount-1
 				--game.print("Removing invalid input " .. key .. " to " .. input.entity.name)
-			elseif input.entity.name == "dynamic-train-unloader" then
+			else --if input.entity.name == "dynamic-train-unloader" then
 				local src = input.entity.pickup_target
 				if src and src.type == "cargo-wagon" then
 					local inv = src.get_inventory(defines.inventory.cargo_wagon)
 					if inv then
 						local items = inv.get_contents()
 						for item,num in pairs(items) do
-							if not depot.indices[item] then --another unhandled item
-								setInputItem(depot, input, item)
-								break
-							end
+							setInputItem(depot, input, item)
+							break
 						end
 					end
 				end
 			end
 		end
-		
-		if rem then
-			depot.indices = {}
-			for _,entry in pairs(depot.inputs) do
-				depot.indices[entry.item] = entry.entity.unit_number
-			end
-		end
 	end
 end
 
-function tickDepot(depot)	
+local function balanceStorages(depot)
+	local total = 0
+	local amounts = {}
+	for _,storage in pairs(depot.storages) do
+		local has = storage.get_inventory(defines.inventory.chest).get_item_count()
+		total = total + has
+		amounts[storage.unit_number] = has
+	end
+	local avg = total/depot.storageCount
+	for unit,amt in pairs(amounts) do
+	
+	end
+end
+
+local function manageLoopFeeds(depot)
+	for _,loop in pairs(depot.loopFeeds) do
+		local inv = loop.storage.get_inventory(defines.inventory.chest)
+		local free = 0
+		for i = 1,#inv do
+			if not (inv[i] and inv[i].valid_for_read) then
+				free = free+1
+			end
+		end
+		
+		--game.print("Found " .. free .. " free slots to send to " .. loop.entity.name)
+		
+		local control = loop.entity.get_control_behavior()
+		control.circuit_condition = {condition={comparator="<", first_signal={type="virtual", name="free-inv-slots"}, constant=20}}
+		if loop.entity.type == "inserter" then
+			loop.entity.active = free <= control.circuit_condition.condition.constant --only works on inserters, not belts
+		else
+			loop.operable = false
+		end
+		--game.print("Setting " .. loop.entity.name .. " @ " .. loop.entity.position.x .. " , " .. loop.entity.position.y .. " : " .. (loop.entity.active and "active" or "inactive"))
+		
+		--[[
+		control.circuit_condition.condition.constant = 10
+		local enable = free <= control.circuit_condition.condition.constant
+		control.circuit_condition.fulfilled = enable
+		control.disabled = not enable
+		--]]
+	end
+end
+
+function tickDepot(depot, tick)	
 	verifyControlSignal(depot)
 	verifyInputsAndStorages(depot)
 	checkConnections(depot)
 	
 	if depot.storageCount and depot.storageCount > 0 then
 		getInputBelts(depot)
+		manageLoopFeeds(depot)
 		updateTypeLimit(depot)
+		--[[
+		if tick%balanceRate == 0
+			balanceStorages(depot)
+		end
+		--]]
 	else
 		depot.typeLimit = 0
 	end

@@ -30,7 +30,7 @@ data:extend({
 		},
 		order = "[logistics]-3",
 		icon_size = 128,
-	},
+	},--[[
 	{
 		type = "technology",
 		name = "large-depot",
@@ -59,7 +59,7 @@ data:extend({
 		},
 		order = "[logistics]-3",
 		icon_size = 128,
-	}
+	},--]]
 })
 
 if Config.unloader then

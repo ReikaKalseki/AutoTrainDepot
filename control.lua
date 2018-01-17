@@ -27,7 +27,7 @@ script.on_event(defines.events.on_tick, function(event)
 		local depot = global.depot
 		for i, entry in ipairs(depot.entries) do
 			--game.print("Ticking depot " .. entry.storage.name)
-			tickDepot(entry)
+			tickDepot(entry, event.tick)
 		end
 	end
 end)

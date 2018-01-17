@@ -127,5 +127,13 @@ data:extend({
 	icon_size = 32,
     subgroup = "virtual-signal-special",
     order = "depot-divisions",
-  }
+  },--[[
+  { --for display in the circuit gui
+    type = "virtual-signal",
+    name = "free-inv-slots",
+    icon = "__AutoTrainDepot__/graphics/icons/freeslots.png",
+	icon_size = 32,
+    subgroup = "virtual-signal-special",
+    order = "free-inv-slots",
+  }--]]
 })
