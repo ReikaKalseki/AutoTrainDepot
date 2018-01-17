@@ -72,6 +72,8 @@ end
 
 local function getInputBelts(depot)
 	if not depot.inputs then depot.inputs = {} end
+	if not depot.outputs then depot.outputs = {} end
+	if not depot.transfers then depot.transfers = {} end
 	if not depot.indices then depot.indices = {} end
 	
 	for _,storage in pairs(depot.storages) do
@@ -83,6 +85,8 @@ local function getInputBelts(depot)
 		area.right_bottom.y = area.right_bottom.y+d+storage.position.y
 		
 		local feed = {}
+		local pull = {}
+		local trans = {}
 		
 		--[[
 		local belts = storage.surface.find_entities_filtered({type = "transport-belt", area = area, force = storage.force})
@@ -103,9 +107,25 @@ local function getInputBelts(depot)
 			--game.print("Found a inserter " .. inserter.name .. " @ " .. inserter.position.x .. " , " .. inserter.position.y .. " , dropping in " .. (inserter.drop_target and inserter.drop_target.name or "none"))
 			if inserter.drop_target and inserter.drop_target == storage then
 				--game.print("Inserter is feeding.")
-				table.insert(feed, inserter)
-			elseif (inserter.name == "train-unloader" or inserter.name == "dynamic-train-unloader") and inserter.direction == (getRequiredBeltDirection(inserter, storage)+4)%8 then --when not active, drop_target is never set
-				table.insert(feed, inserter)
+				if inserter.pickup_target and depot.storages[inserter.pickup_target] then
+					table.insert(trans, inserter)
+				else
+					table.insert(feed, inserter)
+				end
+			elseif inserter.pickup_target and inserter.pickup_target == storage then
+				if inserter.drop_target and depot.storages[inserter.drop_target] then
+					table.insert(trans, inserter)
+				else
+					table.insert(pull, inserter)
+				end
+			elseif (inserter.name == "train-unloader" or inserter.name == "dynamic-train-unloader") then --when not active, drop_target is never set
+				local pulldir = getRequiredBeltDirection(inserter, storage)
+				local pushdir = (pulldir+4)%8
+				if inserter.direction == pushdir then
+					table.insert(feed, inserter)
+				elseif inserter.direction == pulldir then
+					table.insert(pull, inserter)
+				end
 			end
 		end
 		
