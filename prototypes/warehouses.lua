@@ -76,7 +76,7 @@ if data.raw.container["angels-warehouse"] then
 		recipe.ingredients = {
 			{name, 1},
 			{"processing-unit", 20},
-			{"concrete", 200},
+			{"refined-concrete", 200},
 			{"steel-chest", 10},
 		}
 		
