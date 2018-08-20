@@ -24,7 +24,7 @@ if data.raw.container["angels-warehouse"] then
 	
 	data:extend({tech, tech2})	
 
-	local types = {"", "-active-provider", "-passive-provider", "-requester", "-buffer", "-requester"}
+	local types = {"", "-active-provider", "-passive-provider", "-requester", "-buffer", "-storage"}
 	
 	for _,type in pairs(types) do
 		local name = "angels-warehouse" .. type
