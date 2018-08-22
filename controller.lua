@@ -72,8 +72,20 @@ local function getInputThreshold(depot, item)
 	return math.floor((depot.slotsPerType-0.1)*game.item_prototypes[item].stack_size) --the slight reduction is to ensure does not spill over due to latency; some still inbound
 end
 
+local function getLoopFedStorages(depot, entity)
+	if depot.loopFeeds[entity.unit_number] then return nil, nil end
+	local from = entity.pickup_target
+	local to = entity.drop_target
+	if from and not depot.storages[from.unit_number] then from = nil end
+	if to and not depot.storages[to.unit_number] then to = nil end
+	return from, to
+end
+
 local function getInputBelts(depot)
 	if not depot.inputs then depot.inputs = {} end
+	if not depot.loopFeeds then depot.loopFeeds = {} end
+	
+	local loops = {}
 	
 	for _,storage in pairs(depot.storages) do
 		local d = 1--loader and 3 or 1
@@ -83,7 +95,7 @@ local function getInputBelts(depot)
 		area.left_top.y = area.left_top.y-d+storage.position.y
 		area.right_bottom.y = area.right_bottom.y+d+storage.position.y
 		
-		local feed = {}
+		local feeds = {}
 		
 		--[[
 		local belts = storage.surface.find_entities_filtered({type = "transport-belt", area = area, force = storage.force})
@@ -102,11 +114,15 @@ local function getInputBelts(depot)
 		local inserters = storage.surface.find_entities_filtered({type = "inserter", area = area, force = storage.force})
 		for _,inserter in pairs(inserters) do
 			--game.print("Found a inserter " .. inserter.name .. " @ " .. inserter.position.x .. " , " .. inserter.position.y .. " , dropping in " .. (inserter.drop_target and inserter.drop_target.name or "none"))
-			if inserter.drop_target and inserter.drop_target == storage and not (inserter.pickup_target and depot.storages[inserter.pickup_target.unit_number]) then
+			local from, to = --[[(loops[inserter.unit_number] ~= nil) and nil,nil or --]]getLoopFedStorages(depot, inserter)
+			if from and to then
+				--game.print("Found looping inserter  @ " .. inserter.position.x .. ", " .. inserter.position.y)
+				loops[inserter.unit_number] = {type = "loop", entity = inserter, from = from, to = to, wire = wire}
+			elseif inserter.drop_target and inserter.drop_target == storage and not (inserter.pickup_target and depot.storages[inserter.pickup_target.unit_number]) then
 				--game.print("Inserter is feeding.")
-				table.insert(feed, inserter)
+				table.insert(feeds, inserter)
 			elseif (inserter.name == "train-unloader" or inserter.name == "dynamic-train-unloader") and inserter.direction == (getRequiredBeltDirection(inserter, storage)+4)%8 then --when not active, drop_target is never set
-				table.insert(feed, inserter)
+				table.insert(feeds, inserter)
 			end
 		end
 		
@@ -120,13 +136,13 @@ local function getInputBelts(depot)
 					local belt = getLoaderFeed(loader)
 					if belt then
 						--game.print("Loader has a belt")
-						table.insert(feed, belt)
+						table.insert(feeds, belt)
 					end
 				end
 			end
 		end
 		
-		for _,feed in pairs(feed) do -- can be belt OR inserter, nothing else
+		for _,feed in pairs(feeds) do -- can be belt OR inserter, nothing else
 			if (not depot.inputCount or depot.inputCount < depot.typeLimit) and not depot.inputs[feed.unit_number] then --prevent duplicate or too many entries
 				local item = nil
 				if feed.type == "transport-belt" then
@@ -171,6 +187,10 @@ local function getInputBelts(depot)
 				end
 			end
 		end
+	end
+	
+	for _,found in pairs(loops) do
+		depot.loopFeeds[found.entity.unit_number] = {entity = found.entity, source = found.from, target = found.to}
 	end
 end
 
@@ -237,19 +257,6 @@ local function bindController(entry, chest, wire)
 	--game.print("Linked controller to " .. chest.name .. " (now has " .. entry.storageCount .. "), with " .. cats .. " divisions among a total of " .. entry.slotCount .. " slots")
 end
 
-local function getConnectedChestForLoopFeed(depot, entity, clr)
-	local net = entity.circuit_connected_entities
-	local data = net and net[clr] or nil
-	if data then
-		for _,found in pairs(data) do
-			if depot.storages[found.unit_number] then
-				return found
-			end
-		end
-	end
-	return nil
-end
-
 local function checkEntityConnections(depot, ret, check, wire, path)
 	if not path then path = {} end
 	path[#path+1] = check
@@ -260,16 +267,6 @@ local function checkEntityConnections(depot, ret, check, wire, path)
 		for _,entity in pairs(data) do
 			if entity.type == "container" or entity.type == "logistic-container" then
 				table.insert(ret, {type = "storage", entity = entity, wire = wire})
-			elseif (entity.type == "inserter" or entity.type == "transport-belt") and not depot.loopFeeds[entity.unit_number] then
-				local control = entity.get_control_behavior()
-				if control and control.circuit_condition and control.circuit_condition.condition and control.circuit_condition.condition.first_signal and control.circuit_condition.condition.first_signal.name == "free-inv-slots" then
-					--game.print("Found an entity checking free-inv-slots: " .. entity.name)
-					local read = getConnectedChestForLoopFeed(depot, entity, clr)
-					if read then
-						--game.print("Connected an entity checking free-inv-slots: " .. entity.name .. " @ " .. entity.position.x .. " , " .. entity.position.y)
-						table.insert(ret, {type = "loop", entity = entity, storage = read, wire = wire})
-					end
-				end
 			end
 		end
 		
@@ -290,7 +287,7 @@ end
 
 local function checkConnections(entry)
 	if not entry.storages then entry.storages = {} end
-	if not entry.loopFeeds then entry.loopFeeds = {} end
+	--if not entry.loopFeeds then entry.loopFeeds = {} end
 
 	local li = {}
 
@@ -310,9 +307,13 @@ local function checkConnections(entry)
 			bindController(entry, found.entity, found.wire)
 		elseif found.type == "loop" then
 			--game.print("Caching loop # " .. found.entity.unit_number)
-			entry.loopFeeds[found.entity.unit_number] = {entity = found.entity, storage = found.storage}
+			--entry.loopFeeds[found.entity.unit_number] = {entity = found.entity, source = found.from, target = found.to}
 		end
 	end
+end
+
+local function setCrossFeedControlSignal(entry, i)
+
 end
 
 local function verifyControlSignal(entry)
@@ -323,6 +324,20 @@ local function verifyControlSignal(entry)
 	elseif set.signal.name ~= "depot-divisions" then
 		control.set_signal(1, {signal = {type = "virtual", name = "depot-divisions"}, count = set.signal.count})
 	end
+	--[[
+	if entry.storages then
+		local i = 2
+		for unit,storage in pairs(entry.storages) do
+			if storage and storage.valid then
+				setCrossFeedControlSignal(entry, i)
+			else
+				control.set_signal(i, nil)
+				control.set_signal(i+1, nil)
+			end
+			i = i+2
+		end
+	end
+	--]]
 end
 
 local function verifyInputsAndStorages(depot)
@@ -362,46 +377,61 @@ local function verifyInputsAndStorages(depot)
 end
 
 local function balanceStorages(depot)
-	local total = 0
 	local amounts = {}
+	local totals = {}
+	local div = 0
 	for _,storage in pairs(depot.storages) do
-		local has = storage.get_inventory(defines.inventory.chest).get_item_count()
-		total = total + has
-		amounts[storage.unit_number] = has
+		local has = storage.get_inventory(defines.inventory.chest).get_contents()
+		for type,amt in pairs(has) do
+			local old = amounts[type] and amounts[type] or 0
+			amounts[type] = old+amt
+			totals[type] = amounts[type]
+		end
+		div = div+1
 	end
-	local avg = total/depot.storageCount
-	for unit,amt in pairs(amounts) do
-	
+	for _,storage in pairs(depot.storages) do
+		local inv = storage.get_inventory(defines.inventory.chest)
+		inv.clear()
+		for type,amt in pairs(amounts) do
+			local add = math.floor(amt/div)
+			if add > 0 then
+				local added = inv.insert({name = type, count = add})
+				totals[type] = totals[type]-added
+			end
+		end
+	end
+	for type,amt in pairs(totals) do
+		if amt > 0 and amounts[type] > 0 then --add leftovers
+			for _,storage in pairs(depot.storages) do
+				local inv = storage.get_inventory(defines.inventory.chest)
+				local added = inv.insert({name = type, count = amt})
+				totals[type] = totals[type]-added
+				amounts[type] = totals[type]
+				if amounts[type] <= 0 then break end
+			end
+		end
 	end
 end
 
-local function manageLoopFeeds(depot)
+local function countFreeSlots(cache, chest)
+	if cache[chest.unit_number] then return cache[chest.unit_number] end
+	local inv = chest.get_inventory(defines.inventory.chest)
+	local free = 0
+	for i = 1,#inv do
+		if not (inv[i] and inv[i].valid_for_read) then
+			free = free+1
+		end
+	end
+	cache[chest.unit_number] = free
+	return free
+end
+
+local function manageLoopFeeds(depot) --too laggy
+	local cache = {}
 	for _,loop in pairs(depot.loopFeeds) do
-		local inv = loop.storage.get_inventory(defines.inventory.chest)
-		local free = 0
-		for i = 1,#inv do
-			if not (inv[i] and inv[i].valid_for_read) then
-				free = free+1
-			end
-		end
-		
-		--game.print("Found " .. free .. " free slots to send to " .. loop.entity.name)
-		
-		local control = loop.entity.get_control_behavior()
-		control.circuit_condition = {condition={comparator="<", first_signal={type="virtual", name="free-inv-slots"}, constant=20}}
-		if loop.entity.type == "inserter" then
-			loop.entity.active = free <= control.circuit_condition.condition.constant --only works on inserters, not belts
-		else
-			loop.operable = false
-		end
-		--game.print("Setting " .. loop.entity.name .. " @ " .. loop.entity.position.x .. " , " .. loop.entity.position.y .. " : " .. (loop.entity.active and "active" or "inactive"))
-		
-		--[[
-		control.circuit_condition.condition.constant = 10
-		local enable = free <= control.circuit_condition.condition.constant
-		control.circuit_condition.fulfilled = enable
-		control.disabled = not enable
-		--]]
+		local free1 = countFreeSlots(cache, loop.source)
+		local free2 = countFreeSlots(cache, loop.target)
+		loop.entity.active = free2 > free1 and free2 > 1
 	end
 end
 
@@ -412,13 +442,11 @@ function tickDepot(depot, tick)
 	
 	if depot.storageCount and depot.storageCount > 0 then
 		getInputBelts(depot)
-		manageLoopFeeds(depot)
-		updateTypeLimit(depot)
-		--[[
-		if tick%balanceRate == 0
+		if tick%balanceRate == depot.controller.unit_number%balanceRate then
+			--manageLoopFeeds(depot)
 			balanceStorages(depot)
 		end
-		--]]
+		updateTypeLimit(depot)
 	else
 		depot.typeLimit = 0
 	end
