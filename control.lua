@@ -90,71 +90,24 @@ local function createEntry(train)
 	return {train = train.id, name = tostring(train.id), cars = cars, length = #train.carriages}
 end
 
-local function getOrCreateTrainEntry(depot, entity)
-	if not depot.trains then depot.trains = {} end
-	local get = depot.trains[entity.unit_number]
-	game.print("Creating entry for " .. entity.name .. " # " .. entity.unit_number .. " with train " .. entity.train.id .. "; has get? " .. (get and "yes" or "no"))
-	if get then return get end
-	local train = entity.train
-	if entity.type == "locomotive" then
-		get = createEntry(train)
-	else
-		local locos = train.locomotives["front_movers"]
-		game.print(train.id .. " > " .. #locos)
-		if locos and #locos > 0 then
-			for _,loco in pairs(locos) do
-				get = getOrCreateTrainEntry(depot, loco)
-			end
-		end
-		if (not get) then
-			locos = train.locomotives["back_movers"]
-			if locos and #locos > 0 then
-				for _,loco in pairs(locos) do
-					get = getOrCreateTrainEntry(depot, loco)
-				end
-			end
-		end
-		if (not get) then
-			get = createEntry(train)
-		end
-	end
-	game.print("Returning entry for " .. entity.name .. " # " .. entity.unit_number .. " with train " .. entity.train.id .. "; has value? " .. (get and "yes" or "no"))
-	depot.trains[entity.unit_number] = get
-	
-	for k,v in pairs(depot.trains) do game.print(k .. " maps to " .. tostring(v)) end
-	
-	return get
-end
-
 local function getOrCreateTrainEntryByTrain(depot, train)
 	if not depot.trains then depot.trains = {} end
 	local get = depot.trains[train.id]
 	if get then return get end
 
-	local locos = train.locomotives["front_movers"]
-	if locos and #locos > 0 then
-		for _,loco in pairs(locos) do
-			get = getOrCreateTrainEntry(depot, loco)
-		end
-	end
-	if (not get) then
-		locos = train.locomotives["back_movers"]
-		if locos and #locos > 0 then
-			for _,loco in pairs(locos) do
-				get = getOrCreateTrainEntry(depot, loco)
-			end
-		end
-	end
-	if (not get) then
-		get = createEntry(train)
-	end
+	get = createEntry(train)
 		
 	depot.trains[train.id] = get
 	return get
+end	
+
+local function getOrCreateTrainEntry(depot, entity)
+	local train = entity.train
+	return train and getOrCreateTrainEntryByTrain(depot, train) or nil
 end
 
 local function invalidateTrain(depot, entry)
-	game.print("Invalidating train " .. entry.train)
+	--game.print("Invalidating train " .. entry.train)
 	for _,car in pairs(entry.cars) do
 		if car.unit then
 			depot.trains[car.unit] = nil
@@ -231,7 +184,7 @@ function setTrainGui(depot, player, entity)
 	if entry then		
 		local train = entry.train
 		assert(train ~= nil)
-		game.print("Trying " .. train .. " from " .. entity.name .. " # " .. entity.unit_number)
+		--game.print("Trying " .. train .. " from " .. entity.name .. " # " .. entity.unit_number)
 		local obj = getTrainByID(player.force, player.surface, train)
 		if not obj then
 			invalidateTrain(depot, entry)
