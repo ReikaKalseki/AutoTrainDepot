@@ -15,6 +15,10 @@ data:extend({
 			{
 				type = "unlock-recipe",
 				recipe = "depot-controller"
+			},
+			{
+				type = "unlock-recipe",
+				recipe = "depot-fluid-controller"
 			}
 		},
 		unit =
