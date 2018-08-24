@@ -53,18 +53,37 @@ return {
       }
 end
 
-local function createCircuitConnection()
+local function createCircuitConnection(empty)
 return {
         shadow = {
-          red = {0.7725, -3.3125},
-          green = {0.7725, -3.3125}
+          red = {empty and 0 or 0.7725, empty and 0 or -3.3125},
+          green = {empty and 0 or 0.7725, empty and 0 or -3.3125}
         },
         wire = {
-          red = {0.27875, -3.5825},
-          green = {0.27875, -3.5825},
+          red = {empty and 0 or 0.27875, empty and 0 or -3.5825},
+          green = {empty and 0 or 0.27875, empty and 0 or -3.5825},
         }
       }
 end
+
+local bitfilter = table.deepcopy(data.raw["arithmetic-combinator"]["arithmetic-combinator"])
+bitfilter.name = "depot-bitfilter"
+bitfilter.minable = nil
+bitfilter.selectable_in_game = false
+bitfilter.flags = {"placeable-neutral", "player-creation", "not-on-map", "placeable-off-grid", "not-blueprintable", "not-deconstructable"}
+bitfilter.destructible = false
+bitfilter.collision_mask = {}
+bitfilter.order = "z"
+for k,v in pairs(bitfilter) do
+	if string.find(k, "sprite") then
+		bitfilter[k] = {filename = "__core__/graphics/empty.png", width = 1, height = 1}
+	end
+end
+bitfilter.sprites = {filename = "__core__/graphics/empty.png", width = 1, height = 1}
+--bitfilter.collision_box = {{-0.35, -0.35}, {0.35, 0.35}}
+bitfilter.input_connection_points = {createCircuitConnection(true), createCircuitConnection(true), createCircuitConnection(true), createCircuitConnection(true)}
+bitfilter.output_connection_points = {createCircuitConnection(true), createCircuitConnection(true), createCircuitConnection(true), createCircuitConnection(true)}
+data:extend({bitfilter})
 
 data:extend({
   {
