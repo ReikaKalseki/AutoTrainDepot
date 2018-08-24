@@ -12,6 +12,30 @@ for i = 1,6 do
 	createFluidSignals(i)
 end
 
+for i = 1,6 do
+data:extend({
+{
+	type = "sprite",
+	name = "traingui-header-" .. i,
+    filename = "__AutoTrainDepot__/graphics/icons/traingui-header-" .. i .. ".png",
+    priority = "extra-high",
+    width = 25,
+    height = 25,
+}
+})
+end
+
+data:extend({
+{
+	type = "sprite",
+	name = "traingui-header-no",
+    filename = "__AutoTrainDepot__/graphics/icons/traingui-header-no.png",
+    priority = "extra-high",
+    width = 25,
+    height = 25,
+}
+})
+
 data:extend({
   {
 	type = "item",

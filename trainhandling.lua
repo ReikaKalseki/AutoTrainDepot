@@ -2,10 +2,10 @@ require "config"
 
 local function createEntry(train)
 	local cars = {}
-	for _,car in pairs(train.carriages) do
-		local ecar = {type = car.type, unit = car.unit_number}
+	for i,car in pairs(train.carriages) do
+		local ecar = {type = car.type, unit = car.unit_number, index = i}
 		if car.type == "locomotive" then
-			
+			ecar.name = car.backer_name
 		elseif car.type == "fluid-wagon" then
 		
 		else
@@ -124,9 +124,19 @@ function setTrainGui(depot, player, entity)
 		assert(obj ~= nil)
 		local guis = {}
 		local root = player.gui.left.add{type = "frame", name = "traingui-root", direction = "vertical"}
-		root.tooltip = train
+		root.tooltip = "Train #" .. train
 		--root.title_top_padding = 0
 		--root.title_bottom_padding = 0
+		local header = root.add{type = "flow", name = "traingui-header"}
+		header.style.height = 24
+		local spacer = header.add{type = "sprite", name = "traingui-header-spacer", "utility/empty"}
+		spacer.style.width = 1
+		for i = 1,7 do --7, not 6; slot 7 is "inactive"
+			--local box = header.add{type = "sprite", name = "traingui-header-" .. i, sprite = i == 7 and "utility/clear" or ("virtual-signal/signal-" .. i)}
+			local box = header.add{type = "sprite", name = "traingui-header-" .. i, sprite = i == 7 and "traingui-header-no" or "traingui-header-" .. i}
+			box.style.width = 24
+			box.tooltip = i == 7 and "No connection" or ("Fluid Type " .. i)
+		end
 		for idx,car in pairs(entry.cars) do
 			local gui = nil
 			local id = "traingui-" .. (#guis+1)
@@ -146,7 +156,7 @@ function setTrainGui(depot, player, entity)
 			if gui then
 				gui.style.top_padding = 0
 				gui.style.bottom_padding = 0
-				gui.tooltip = id
+				gui.tooltip = car.type == "locomotive" and "'" .. car.name .. "'" or "Car #" .. car.index
 				table.insert(guis, gui)
 			end
 		end
@@ -156,7 +166,7 @@ function setTrainGui(depot, player, entity)
 end
 
 local function getTrainForGui(player, text)
-	return getTrainByID(player.surface, player.force, tonumber(text))
+	return getTrainByID(player.surface, player.force, tonumber(string.sub(text, 1+string.len("Train #"))))
 end
 
 local function saveGuiData(depot, player)
@@ -168,9 +178,9 @@ local function saveGuiData(depot, player)
 			--game.print("Has entry? " .. (entry and "yes" or "no"))
 			if entry then
 				for i,child in pairs(elem.children) do
-					if child.children and #child.children > 0 then
-						--game.print("Car " .. i .. ": " .. val)
-						setTrainCarFilterData(depot, train, i, child.children)
+					if i > 1 and child.children and #child.children > 0 then
+						--game.print("Car " .. i)
+						setTrainCarFilterData(depot, train, i-1, child.children)
 					end
 				end
 			end
