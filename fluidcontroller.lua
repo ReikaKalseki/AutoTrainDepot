@@ -1,22 +1,33 @@
 require "config"
+require "trainhandling"
 
-local function hasInput(inputs, i)
-	return false
+local function getValue(depot, entry2, i)
+	if not entry2 then return 0 end
+	local entry = getOrCreateTrainEntryByTrain(depot, entry2.train)
+	local ret = 0
+	if entry then
+		for idx,car in pairs(entry.cars) do
+			--game.print("Checking car #" .. idx .. ": " .. car.type)
+			local data = getTrainCarFilterData(depot, entry2.train, idx)
+			if data and data == i then
+				ret = ret+(2^(idx-2))
+				--game.print("Car " .. idx .. " .. of train " .. entry2.train.id .. " filtered to slot " .. data)
+			end
+		end
+	end
+	return ret
 end
 
-local function hasOutput(outputs, i)
-	return false
-end
-
-local function sendControlSignals(inputs, outputs, entry)
+local function sendControlSignals(depot, input, output, entry)
 	local control = entry.controller.get_control_behavior()
 	for i = 1,6 do
-		control.set_signal(i, {signal = {type = "virtual", name = "signal-fluid-in" .. i}, count = hasInput(inputs, i) and 1 or 0})
-		control.set_signal(i+6, {signal = {type = "virtual", name = "signal-fluid-out" .. i}, count = hasOutput(outputs, i) and 1 or 0})
+		--game.print("Input Channel " .. i .. ": " .. getValue(depot, input, i))
+		control.set_signal(i, {signal = {type = "virtual", name = "signal-fluid-in" .. i}, count = getValue(depot, input, i)})
+		control.set_signal(i+6, {signal = {type = "virtual", name = "signal-fluid-out" .. i}, count = getValue(depot, output, i)})
 	end
 end
 
-local function checkEntityConnections(depot, ret, check, wire, path)
+local function checkEntityConnections(depot, ret, check, wire, path, step)
 	if not path then path = {} end
 	path[#path+1] = check
 	local net = check.circuit_connected_entities
@@ -24,23 +35,27 @@ local function checkEntityConnections(depot, ret, check, wire, path)
 	local data = net[clr]
 	if data then
 		for _,entity in pairs(data) do
+			local entry = {entity = entity, wire = wire, step = step}
 			if entity.type == "pump" then
-				table.insert(ret, {type = "pump", entity = entity, wire = wire})
+				entry.type = "pump"
 			elseif entity.type == "train-stop" then
-				table.insert(ret, {type = "station", entity = entity, wire = wire})
+				entry.type = "station"
 			end
+			table.insert(ret, entry)
 		end
 		
 		for _,entity in pairs(data) do --try recursion along connected wire, except for ones already in our path
-			local back = false
-			for _,p in pairs(path) do
-				if p == entity then
-					back = true
-					break
+			if entity.type == "electric-pole" then
+				local back = false
+				for _,p in pairs(path) do
+					if p == entity then
+						back = true
+						break
+					end
 				end
-			end
-			if not back then
-				checkEntityConnections(depot, ret, entity, wire, path)
+				if not back then
+					checkEntityConnections(depot, ret, entity, wire, path, step+1)
+				end
 			end
 		end
 	end
@@ -48,52 +63,94 @@ end
 
 local function checkConnections(entry)
 	if not entry.pumps then entry.pumps = {} end
-	if not entry.stations then entry.stations = {} end
+	entry.stations = {}
 	--if not entry.loopFeeds then entry.loopFeeds = {} end
 
 	local li = {}
 
 	if entry.wire ~= defines.wire_type.green then
 		--game.print("Checking red connections")
-		checkEntityConnections(entry, li, entry.controller, defines.wire_type.red)
+		checkEntityConnections(entry, li, entry.controller, defines.wire_type.red, nil, 0)
 	end
 	
-	if #li == 0 then
-		if entry.wire ~= defines.wire_type.red then
-			checkEntityConnections(entry, li, entry.controller, defines.wire_type.green)
-		end
+	if entry.wire ~= defines.wire_type.red then
+		checkEntityConnections(entry, li, entry.controller, defines.wire_type.green, nil, 0)
 	end
 	
 	for _,found in pairs(li) do
+		--game.print((found.type and found.type or "nil") .. " from " .. found.entity.type)
 		if found.type == "pump" then
-			entry.pumps[found.entity.unit_number] = {entity = found.entity, wire = found.wire}
+			entry.pumps[found.entity.unit_number] = {entity = found.entity, wire = found.wire, index = found.step}
 		elseif found.type == "station" then
-			entry.stations[found.entity.unit_number] = {entity = found.entity, wire = found.wire}
+			local entry2 = {entity = found.entity, wire = found.wire, input = found.wire == defines.wire_type.red} --so that filling trains uses red
+			table.insert(entry.stations, entry2)
+			--game.print("Adding station " .. found.entity.unit_number .. " # " .. (entry2.input and "input" or "output"))
 		end
+	end
+	
+	if #entry.stations > 2 then
+		entry.controller.force.print("Fluid depot @ " .. entry.controller.position.x .. ", " ..entry.controller.position.y .. " connected to too many stations.")
+		entry.stations = {}
+	end
+	
+	if #entry.stations == 2 and entry.stations[1].input == entry.stations[2].input then
+		entry.controller.force.print("Fluid depot @ " .. entry.controller.position.x .. ", " ..entry.controller.position.y .. " connected to multiple stations of the same type.")
+		entry.stations = {}
 	end
 end
 
 local function readTrains(depot)
-	local inputs = {}
-	local outputs = {}
+	local input = nil
+	local output = nil
+	--game.print(#depot.stations)
 	for _,entry in pairs(depot.stations) do
 		for _,train in pairs(entry.entity.get_train_stop_trains()) do
+			--game.print(train.id .. " > " .. (train.station and "parked" or "not") .. " @ " .. (entry.input and "input" or "output"))
 			if train.station == entry.entity then
+				--game.print(train.id)
 				local ret = {station = entry.entity, train = train}
-				if string.find(entry.entity.backer_name, "output") then
-					table.insert(outputs, ret)
+				if entry.input then
+					input = ret
 				else
-					table.insert(inputs, ret)
+					output = ret
 				end
 			end
 		end
 	end
-	return inputs, outputs
+	--game.print(input and "yes1" or "no1")
+	--game.print(output and "yes2" or "no2")
+	return input, output
 end
 
-function tickFluidDepot(depot, tick)
+local function createCombinators(depot)
+	for unit,pump in pairs(depot.pumps) do
+		local pos = pump.entity.surface.find_non_colliding_position("arithmetic-combinator", pump.entity.position, 8, 1)
+		if pos then
+			local create = pump.entity.surface.create_entity({name = "arithmetic-combinator", position = pos, force = pump.entity.force})
+			local control = create.get_or_create_control_behavior()
+			local control2 = pump.entity.get_control_behavior()
+			if control2 and control2.circuit_condition and control2.circuit_condition.condition and control2.circuit_condition.condition.first_signal and string.find(control2.circuit_condition.condition.first_signal.name, "signal-fluid-", 1, true) then
+				local signal = control2.circuit_condition.condition.first_signal
+				--game.print("Found a pump connected to car " .. pump.index .. " with signal " .. signal.name .. ", creating combinator to bitwise AND signal with " .. (2^pump.index))
+				control.parameters = {parameters={first_signal = {type = signal.type, name = signal.name}, second_constant = 2^(pump.index-1), operation = "AND", output_signal = {type = signal.type, name = signal.name}}}
+				local net = pump.entity.circuit_connected_entities
+				local clr = pump.wire == defines.wire_type.red and "red" or "green"
+				local data = net[clr]
+				local pole = data[1]
+				pump.entity.disconnect_neighbour(pump.wire)
+				pump.entity.connect_neighbour({target_entity = create, wire = pump.wire, target_circuit_id = 2})
+				pole.connect_neighbour({target_entity = create, wire = pump.wire, target_circuit_id = 1})
+				depot.pumps[unit] = nil
+				--game.print(create.get_control_behavior().parameters.parameters.operation)
+			end
+		end
+	end
+end
+
+function tickFluidDepot(table, depot, tick)
 	checkConnections(depot)
-	local inputs, outputs = readTrains(depot)
-	sendControlSignals(inputs, outputs, depot)
+	createCombinators(depot)
+	local input, output = readTrains(depot)
+	sendControlSignals(table, input, output, depot)
 	--checkConnections(depot)
 end
