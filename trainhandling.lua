@@ -1,24 +1,37 @@
 require "config"
 
+local ENTRY_VERSION = 5
+
 local function createEntry(train)
 	local cars = {}
+	local idxs = {}
+	local idxs2 = {}
 	for i,car in pairs(train.carriages) do
-		local ecar = {type = car.type, unit = car.unit_number, index = i}
+		local idx = idxs[car.type] and idxs[car.type] or 1
+		local ecar = {type = car.type, unit = car.unit_number, index = idx}
 		if car.type == "locomotive" then
 			ecar.name = car.backer_name
 		elseif car.type == "fluid-wagon" then
-		
+			ecar.name = "Wagon " .. idx
 		else
-			
+			ecar.name = "Car " .. idx
 		end
+		idxs[car.type] = idx+1
 		table.insert(cars, ecar)
+		if not idxs2[car.type] then idxs2[car.type] = {} end
+		idxs2[car.type][idx] = i
 	end
-	return {train = train.id, name = tostring(train.id), cars = cars, length = #train.carriages}
+	return {train = train.id, name = tostring(train.id), cars = cars, length = #train.carriages, version = ENTRY_VERSION, indices = idxs2}
+end
+
+local function isValid(entry)
+	return entry and entry.version and entry.version >= ENTRY_VERSION and entry.train and entry.cars and entry.length and entry.name and #entry.cars > 0 and entry.cars[1].type and entry.cars[1].index and entry.cars[1].name
 end
 
 function getOrCreateTrainEntryByTrain(depot, train)
 	if not depot.trains then depot.trains = {} end
 	local get = depot.trains[train.id]
+	if not isValid(get) then get = nil end
 	if get then return get end
 
 	get = createEntry(train)
@@ -59,10 +72,11 @@ end
 
 function getTrainCarFilterData(depot, train, car)
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
-	if entry.cars[car] == nil or entry.cars[car].type ~= "fluid-wagon" then return nil end
+	local idx = entry.indices["fluid-wagon"][car]
+	if entry.cars[idx] == nil or entry.cars[idx].type ~= "fluid-wagon" then return nil end
 	local filters = getTrainFilterData(depot, train)
 	--game.print("loaded stored filter " .. (filters[car] and filters[car] or "nil") .. " for car " .. car)
-	if not filters[car] or type(filters[car]) ~= "number" then filters[car] = 1 end
+	if not filters[car] or type(filters[car]) ~= "number" then filters[car] = 7 end
 	return filters[car]
 end
 
@@ -83,7 +97,7 @@ function handleTrainGUIState(event)
 	if string.find(event.element.name, "traingui") and string.find(event.element.name, "button") then
 		local a, b = string.find(event.element.name, "-button-", 1, true)
 		local ending = string.sub(event.element.name, b+1)
-		local pref = string.sub(event.element.name, string.len("traingui-")+1, a-1)
+		local pref = string.sub(event.element.name, string.len("traingui-fluid-wagon-")+1, a-1)
 		local idx = tonumber(ending)
 		local car = tonumber(pref)
 		--game.print("Setting button " .. idx .. " for car " .. car)
@@ -137,15 +151,16 @@ function setTrainGui(depot, player, entity)
 			box.style.width = 24
 			box.tooltip = i == 7 and "No connection" or ("Fluid Type " .. i)
 		end
-		for idx,car in pairs(entry.cars) do
+		for _,car in pairs(entry.cars) do
 			local gui = nil
-			local id = "traingui-" .. (#guis+1)
+			local id = "traingui-" .. car.type .. "-" .. car.index
 			--game.print("Adding " .. id)
 			if car.type == "fluid-wagon" then
 				--gui = root.add{type = "textfield", name = id, text = "Any"}
 				gui = root.add{type = "frame", name = id}
 				gui.style.height = 30 --24 for flow, 30 for frame
-				local data = getTrainCarFilterData(depot, obj, idx)
+				local data = getTrainCarFilterData(depot, obj, car.index)
+				--game.print("Creating GUI for car " .. car.index .. ", data = " .. (data and data or "nil"))
 				for i = 1,7 do --7, not 6; slot 7 is "inactive"
 					gui.add{type = "radiobutton", name = id .. "-button-" .. i, state = i == data}
 				end
@@ -179,8 +194,9 @@ local function saveGuiData(depot, player)
 			if entry then
 				for i,child in pairs(elem.children) do
 					if i > 1 and child.children and #child.children > 0 then
-						--game.print("Car " .. i)
-						setTrainCarFilterData(depot, train, i-1, child.children)
+						local idx = tonumber(string.sub(child.tooltip, string.len("Car #")+1))
+						--game.print("Car " .. i .. " from " .. idx .. " of " .. child.tooltip)
+						setTrainCarFilterData(depot, train, idx, child.children)
 					end
 				end
 			end
