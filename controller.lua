@@ -64,7 +64,7 @@ local function getLoaderFeed(loader)
 		area[1][2] = area[1][2]+1
 		area[2][2] = area[2][2]+1
 	end
-	local belts = loader.surface.find_entities_filtered({type = "transport-belt", area = area, force = loader.force})
+	local belts = loader.surface.find_entities_filtered({type = "transport-belt", area = area, force = loader.force, limit = 1})
 	return #belts > 0 and belts[1] or nil
 end
 
@@ -158,7 +158,8 @@ local function getInputBelts(depot)
 					item = feed.held_stack and feed.held_stack.valid_for_read and feed.held_stack.name or item
 				end
 				
-				--game.print("Found " .. (item and item or "nil") .. " for " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y)
+				--local old = (depot.inputs[feed.unit_number] and depot.inputs[feed.unit_number].item) and depot.inputs[feed.unit_number].item or "nil"
+				--game.print("Found " .. (item and item or "nil") .. " (from " .. old .. ")" .. " for " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y)
 				if item then
 					feed.active = true --turn any disabled entities back on, and enable any unloaders
 					
@@ -324,6 +325,11 @@ local function verifyControlSignal(entry)
 	elseif set.signal.name ~= "depot-divisions" then
 		control.set_signal(1, {signal = {type = "virtual", name = "depot-divisions"}, count = set.signal.count})
 	end
+	
+	if entry.basic and control.get_signal(1).count > 20 then
+		control.set_signal(1, {signal = {type = "virtual", name = "depot-divisions"}, count = 20})
+	end
+	
 	--[[
 	if entry.storages then
 		local i = 2
@@ -353,13 +359,26 @@ local function verifyInputsAndStorages(depot)
 	if depot.inputs then
 		local rem = false
 		for key,input in pairs(depot.inputs) do
-			--game.print("Checking input " .. input.entity.name)
+			--game.print("Checking input " .. input.entity.name .. " @ " .. input.entity.position.x .. " , " .. input.entity.position.y .. " (has item " .. (input.item and input.item or "nil"))
 			if not input.entity.valid or not input.storage or not input.storage.valid or not depot.storages[input.storage.unit_number] then
 				depot.inputs[key] = nil
 				rem = true
 				depot.inputCount = depot.inputCount-1
 				--game.print("Removing invalid input " .. key .. " to " .. input.entity.name)
-			else --if input.entity.name == "dynamic-train-unloader" then
+			elseif input.entity.type == "inserter" and (not depot.basic) then -- input.entity.name == "dynamic-train-unloader"
+				local src = input.entity.pickup_target
+				if src and src.type == "cargo-wagon" then
+					local inv = src.get_inventory(defines.inventory.cargo_wagon)
+					if inv then
+						local items = inv.get_contents()
+						for item,num in pairs(items) do
+							setInputItem(depot, input, item)
+							break
+						end
+					end
+				end
+			elseif input.entity.type == "loader" and (not depot.basic) then
+				local belt = getLoaderFeed(loader)
 				local src = input.entity.pickup_target
 				if src and src.type == "cargo-wagon" then
 					local inv = src.get_inventory(defines.inventory.cargo_wagon)
@@ -442,7 +461,7 @@ function tickDepot(depot, tick)
 	
 	if depot.storageCount and depot.storageCount > 0 then
 		getInputBelts(depot)
-		if tick%balanceRate == depot.controller.unit_number%balanceRate then
+		if (not depot.basic) and tick%balanceRate == depot.controller.unit_number%balanceRate then
 			--manageLoopFeeds(depot)
 			balanceStorages(depot)
 		end

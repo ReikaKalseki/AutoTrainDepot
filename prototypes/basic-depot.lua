@@ -1,27 +1,29 @@
 data:extend({
   {
 	type = "item",
-	name = "depot-controller",
+	name = "basic-depot-controller",
 	icon = "__AutoTrainDepot__/graphics/icons/depot-controller.png",
 	icon_size = 32,
     flags = {"goes-to-quickbar"},
     subgroup = "storage",
     order = "b[items]-b[depot]",
-    place_result = "depot-controller",
+    place_result = "basic-depot-controller",
     stack_size = 1
   },
   {
 	type = "recipe",
-	name = "depot-controller",
+	name = "basic-depot-controller",
     enabled = false,
 	energy_required = 4,
     ingredients =
     {
-      {"basic-depot-controller", 1},
-      {"advanced-circuit", 10},
-      {"red-wire", 40},
+      {"arithmetic-combinator", 2},
+      {"engine-unit", 4},
+      {"fast-transport-belt", 20},
+      {"electronic-circuit", 50},
+      {"red-wire", 20},
     },
-    result = "depot-controller"
+    result = "basic-depot-controller"
   }
 })
 
@@ -53,11 +55,11 @@ end
 data:extend({
   {
     type = "constant-combinator",
-    name = "depot-controller",
+    name = "basic-depot-controller",
     icon = "__base__/graphics/icons/constant-combinator.png",
 	icon_size = 32,
     flags = {"placeable-neutral", "player-creation"},
-    minable = {hardness = 0.2, mining_time = 0.5, result = "depot-controller"},
+    minable = {hardness = 0.2, mining_time = 0.5, result = "basic-depot-controller"},
     max_health = 100,
     corpse = "small-remnants",
 
@@ -112,26 +114,6 @@ data:extend({
 	  createCircuitConnection(),
     },
 
-    circuit_wire_max_distance = 18
+    circuit_wire_max_distance = 12
   }
-})
-
-
-data:extend({
-  { --for display in the circuit gui
-    type = "virtual-signal",
-    name = "depot-divisions",
-    icon = "__AutoTrainDepot__/graphics/icons/divisions.png",
-	icon_size = 32,
-    subgroup = "virtual-signal-special",
-    order = "depot-divisions",
-  },--[[
-  { --for display in the circuit gui
-    type = "virtual-signal",
-    name = "free-inv-slots",
-    icon = "__AutoTrainDepot__/graphics/icons/freeslots.png",
-	icon_size = 32,
-    subgroup = "virtual-signal-special",
-    order = "free-inv-slots",
-  }--]]
 })

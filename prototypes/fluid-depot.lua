@@ -56,7 +56,6 @@ data:extend({
     ingredients =
     {
       {"pump", 6},
-      {"steel-plate", 80},
       {"pipe", 20},
       {"advanced-circuit", 10},
       {"green-wire", 40},

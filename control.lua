@@ -70,7 +70,7 @@ local function invalidate(entry)
 end
 
 local function onEntityRemoved(entity)
-	if entity.name == "depot-controller" or entity.name == "depot-fluid-controller" then
+	if entity.name == "basic-depot-controller" or entity.name == "depot-controller" or entity.name == "depot-fluid-controller" then
 		local depot = global.depot
 		for i, entry in ipairs(depot.entries) do
 			if entry.controller.position.x == entity.position.x and entry.controller.position.y == entity.position.y then
@@ -98,6 +98,10 @@ local function onEntityAdded(entity)
 	if entity.name == "depot-controller" then
 		local depot = global.depot
 		local entry = {controller = entity, storages = {}, type = "item"}
+		table.insert(depot.entries, entry)
+	elseif entity.name == "basic-depot-controller" then
+		local depot = global.depot
+		local entry = {controller = entity, storages = {}, type = "item", basic = true}
 		table.insert(depot.entries, entry)
 	elseif entity.name == "depot-fluid-controller" then
 		local depot = global.depot
