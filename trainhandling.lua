@@ -1,6 +1,6 @@
 require "config"
 
-local ENTRY_VERSION = 5
+local ENTRY_VERSION = 6
 
 local function createEntry(train)
 	local cars = {}
@@ -12,7 +12,9 @@ local function createEntry(train)
 		if car.type == "locomotive" then
 			ecar.name = car.backer_name
 		elseif car.type == "fluid-wagon" then
-			ecar.name = "Wagon " .. idx
+			ecar.name = "Fluid Wagon " .. idx
+		elseif car.type == "cargo-wagon" then
+			ecar.name = "Item Wagon " .. idx
 		else
 			ecar.name = "Car " .. idx
 		end
@@ -164,6 +166,8 @@ function setTrainGui(depot, player, entity)
 				for i = 1,7 do --7, not 6; slot 7 is "inactive"
 					gui.add{type = "radiobutton", name = id .. "-button-" .. i, state = i == data}
 				end
+			elseif car.type == "cargo-wagon" then
+			
 			else
 				gui = root.add{type = "frame", name = id, caption = "[" .. string.gsub(car.type, "-", " ") .. "]"}
 				gui.style.height = 34
