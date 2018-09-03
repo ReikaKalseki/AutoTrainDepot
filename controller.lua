@@ -476,7 +476,7 @@ local function manageLoopFeeds(depot) --too laggy
 	end
 end
 
-local function readTrains(depot, entry)
+local function setTrainFilters(depot, entry)
 	--game.print(#entry.stations)
 	for _,station in pairs(entry.stations) do
 		for _,train in pairs(station.entity.get_train_stop_trains()) do
@@ -490,12 +490,14 @@ local function readTrains(depot, entry)
 						for idx,car in pairs(entry2.cars) do
 							if car.type == "cargo-wagon" then
 								--game.print("Checking car #" .. car.index .. ": " .. car.type)
-								local data = getTrainCarIOData(depot, train, car.index) --data = "should fill"
+								local data = getTrainCarIOData(depot, train, car.index)
 								local wagon = train.carriages[idx]
-								if data then
-									wagon.get_inventory(defines.inventory.cargo_wagon).setbar()
-								else
-									wagon.get_inventory(defines.inventory.cargo_wagon).setbar(1)
+								if data.autoControl then
+									if data.shouldFill then
+										wagon.get_inventory(defines.inventory.cargo_wagon).setbar()
+									else
+										wagon.get_inventory(defines.inventory.cargo_wagon).setbar(1)
+									end
 								end
 							end
 						end
@@ -508,10 +510,13 @@ local function readTrains(depot, entry)
 				if entry2 then
 					for idx,car in pairs(entry2.cars) do
 						if car.type == "cargo-wagon" then
-							if train.station then
-								train.carriages[idx].get_inventory(defines.inventory.cargo_wagon).setbar()
-							else
-								train.carriages[idx].get_inventory(defines.inventory.cargo_wagon).setbar(1)
+							local data = getTrainCarIOData(depot, train, car.index)
+							if data.autoControl then
+								if train.station or train.state == defines.train_state.manual_control then
+									train.carriages[idx].get_inventory(defines.inventory.cargo_wagon).setbar()
+								else
+									train.carriages[idx].get_inventory(defines.inventory.cargo_wagon).setbar(1)
+								end
 							end
 						end
 					end
@@ -527,7 +532,7 @@ function tickDepot(depot, entry, tick)
 	checkConnections(entry)
 	
 	--game.print(input and input.train.id or "nil")
-	readTrains(depot, entry)
+	setTrainFilters(depot, entry)
 	
 	if entry.storageCount and entry.storageCount > 0 then
 		getInputBelts(entry)
