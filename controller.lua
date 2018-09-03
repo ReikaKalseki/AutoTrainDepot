@@ -1,4 +1,5 @@
 require "config"
+require "trainhandling"
 
 local balanceRate = 600 --10s
 
@@ -266,8 +267,14 @@ local function checkEntityConnections(depot, ret, check, wire, path)
 	local data = net[clr]
 	if data then
 		for _,entity in pairs(data) do
+			local entry = {entity = entity, wire = wire}
 			if entity.type == "container" or entity.type == "logistic-container" then
-				table.insert(ret, {type = "storage", entity = entity, wire = wire})
+				entry.type = "storage"
+			elseif entity.type == "train-stop" then
+				entry.type = "station"
+			end
+			if entry.type then
+				table.insert(ret, entry)
 			end
 		end
 		
@@ -288,6 +295,7 @@ end
 
 local function checkConnections(entry)
 	if not entry.storages then entry.storages = {} end
+	entry.stations = {}
 	--if not entry.loopFeeds then entry.loopFeeds = {} end
 
 	local li = {}
@@ -309,7 +317,21 @@ local function checkConnections(entry)
 		elseif found.type == "loop" then
 			--game.print("Caching loop # " .. found.entity.unit_number)
 			--entry.loopFeeds[found.entity.unit_number] = {entity = found.entity, source = found.from, target = found.to}
+		elseif found.type == "station" then
+			local entry2 = {entity = found.entity, wire = found.wire, input = found.wire == defines.wire_type.red} --so that filling trains uses red
+			table.insert(entry.stations, entry2)
+			--game.print("Adding station " .. found.entity.unit_number .. " # " .. (entry2.input and "input" or "output"))
 		end
+	end
+	
+	if #entry.stations > 2 then
+		entry.controller.force.print("Depot @ " .. entry.controller.position.x .. ", " ..entry.controller.position.y .. " connected to too many stations.")
+		entry.stations = {}
+	end
+	
+	if #entry.stations == 2 and entry.stations[1].input == entry.stations[2].input then
+		entry.controller.force.print("Depot @ " .. entry.controller.position.x .. ", " ..entry.controller.position.y .. " connected to multiple stations of the same type.")
+		entry.stations = {}
 	end
 end
 
@@ -454,20 +476,68 @@ local function manageLoopFeeds(depot) --too laggy
 	end
 end
 
-function tickDepot(depot, tick)	
-	verifyControlSignal(depot)
-	verifyInputsAndStorages(depot)
-	checkConnections(depot)
-	
-	if depot.storageCount and depot.storageCount > 0 then
-		getInputBelts(depot)
-		if (not depot.basic) and tick%balanceRate == depot.controller.unit_number%balanceRate then
-			--manageLoopFeeds(depot)
-			balanceStorages(depot)
+local function readTrains(depot, entry)
+	--game.print(#entry.stations)
+	for _,station in pairs(entry.stations) do
+		for _,train in pairs(station.entity.get_train_stop_trains()) do
+			--game.print(train.id .. " > " .. (train.station and "parked" or "not") .. " @ " .. (station.input and "input" or "output"))
+			if train.station == station.entity then
+				--game.print(train.id)
+				local ret = {station = station.entity, train = train}
+				if station.input then
+					local entry2 = getOrCreateTrainEntryByTrain(depot, train)
+					if entry2 then
+						for idx,car in pairs(entry2.cars) do
+							if car.type == "cargo-wagon" then
+								--game.print("Checking car #" .. car.index .. ": " .. car.type)
+								local data = getTrainCarIOData(depot, train, car.index) --data = "should fill"
+								local wagon = train.carriages[idx]
+								if data then
+									wagon.get_inventory(defines.inventory.cargo_wagon).setbar()
+								else
+									wagon.get_inventory(defines.inventory.cargo_wagon).setbar(1)
+								end
+							end
+						end
+					end
+				else
+					
+				end
+			else --clear all filters if parked at a different station
+				local entry2 = getOrCreateTrainEntryByTrain(depot, train)
+				if entry2 then
+					for idx,car in pairs(entry2.cars) do
+						if car.type == "cargo-wagon" then
+							if train.station then
+								train.carriages[idx].get_inventory(defines.inventory.cargo_wagon).setbar()
+							else
+								train.carriages[idx].get_inventory(defines.inventory.cargo_wagon).setbar(1)
+							end
+						end
+					end
+				end
+			end
 		end
-		updateTypeLimit(depot)
+	end
+end
+
+function tickDepot(depot, entry, tick)	
+	verifyControlSignal(entry)
+	verifyInputsAndStorages(entry)
+	checkConnections(entry)
+	
+	--game.print(input and input.train.id or "nil")
+	readTrains(depot, entry)
+	
+	if entry.storageCount and entry.storageCount > 0 then
+		getInputBelts(entry)
+		if (not entry.basic) and tick%balanceRate == entry.controller.unit_number%balanceRate then
+			--manageLoopFeeds(entry)
+			balanceStorages(entry)
+		end
+		updateTypeLimit(entry)
 	else
-		depot.typeLimit = 0
+		entry.typeLimit = 0
 	end
 	
 	

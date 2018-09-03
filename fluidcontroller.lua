@@ -43,7 +43,9 @@ local function checkEntityConnections(depot, ret, check, wire, path, step)
 			elseif entity.type == "train-stop" then
 				entry.type = "station"
 			end
-			table.insert(ret, entry)
+			if entry.type then
+				table.insert(ret, entry)
+			end
 		end
 		
 		for _,entity in pairs(data) do --try recursion along connected wire, except for ones already in our path

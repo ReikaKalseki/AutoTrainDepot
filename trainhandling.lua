@@ -1,6 +1,6 @@
-require "config"
+	require "config"
 
-local ENTRY_VERSION = 6
+local ENTRY_VERSION = 8
 
 local function createEntry(train)
 	local cars = {}
@@ -8,7 +8,7 @@ local function createEntry(train)
 	local idxs2 = {}
 	for i,car in pairs(train.carriages) do
 		local idx = idxs[car.type] and idxs[car.type] or 1
-		local ecar = {type = car.type, unit = car.unit_number, index = idx}
+		local ecar = {type = car.type, unit = car.unit_number, index = idx, position = i}
 		if car.type == "locomotive" then
 			ecar.name = car.backer_name
 		elseif car.type == "fluid-wagon" then
@@ -72,6 +72,13 @@ local function getTrainFilterData(depot, train)
 	return entry.filters
 end
 
+local function getTrainIOData(depot, train)
+	assert(train ~= nil)
+	local entry = getOrCreateTrainEntryByTrain(depot, train)
+	if not entry.io then entry.io = {} end
+	return entry.io
+end
+
 function getTrainCarFilterData(depot, train, car)
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
 	local idx = entry.indices["fluid-wagon"][car]
@@ -79,6 +86,16 @@ function getTrainCarFilterData(depot, train, car)
 	local filters = getTrainFilterData(depot, train)
 	--game.print("loaded stored filter " .. (filters[car] and filters[car] or "nil") .. " for car " .. car)
 	if not filters[car] or type(filters[car]) ~= "number" then filters[car] = 7 end
+	return filters[car]
+end
+
+function getTrainCarIOData(depot, train, car)
+	local entry = getOrCreateTrainEntryByTrain(depot, train)
+	local idx = entry.indices["cargo-wagon"][car]
+	if entry.cars[idx] == nil or entry.cars[idx].type ~= "cargo-wagon" then return nil end
+	local filters = getTrainIOData(depot, train)
+	--game.print("loaded stored filter " .. (filters[car] and filters[car] or "nil") .. " for car " .. car)
+	if not filters[car] or type(filters[car]) ~= "boolean" then filters[car] = false end
 	return filters[car]
 end
 
@@ -95,8 +112,14 @@ local function setTrainCarFilterData(depot, train, car, options)
 	filters[car] = slot
 end
 
+local function setTrainCarIOData(depot, train, car, fill)
+	--game.print("Setting filter for car " .. car .. " to " .. slot)
+	local filters = getTrainIOData(depot, train)
+	filters[car] = fill
+end
+
 function handleTrainGUIState(event)
-	if string.find(event.element.name, "traingui") and string.find(event.element.name, "button") then
+	if string.find(event.element.name, "traingui") and string.find(event.element.name, "button") and string.find(event.element.name, "fluid") then
 		local a, b = string.find(event.element.name, "-button-", 1, true)
 		local ending = string.sub(event.element.name, b+1)
 		local pref = string.sub(event.element.name, string.len("traingui-fluid-wagon-")+1, a-1)
@@ -167,7 +190,11 @@ function setTrainGui(depot, player, entity)
 					gui.add{type = "radiobutton", name = id .. "-button-" .. i, state = i == data}
 				end
 			elseif car.type == "cargo-wagon" then
-			
+				gui = root.add{type = "frame", name = id}
+				gui.style.height = 30 --24 for flow, 30 for frame
+				local data = getTrainCarIOData(depot, obj, car.index)
+				--game.print("Creating GUI for car " .. car.index .. ", data = " .. (data and data or "nil"))
+				gui.add{type = "checkbox", name = id .. "-button", caption = "Fills At Depot", state = data}
 			else
 				gui = root.add{type = "frame", name = id, caption = "[" .. string.gsub(car.type, "-", " ") .. "]"}
 				gui.style.height = 34
@@ -199,8 +226,12 @@ local function saveGuiData(depot, player)
 				for i,child in pairs(elem.children) do
 					if i > 1 and child.children and #child.children > 0 then
 						local idx = tonumber(string.sub(child.tooltip, string.len("Car #")+1))
-						--game.print("Car " .. i .. " from " .. idx .. " of " .. child.tooltip)
-						setTrainCarFilterData(depot, train, idx, child.children)
+						--game.print("Car " .. i .. " from " .. idx .. " of " .. child.tooltip .. " which has child #1 " .. child.children[1].name)
+						if string.find(child.name, "fluid") then
+							setTrainCarFilterData(depot, train, idx, child.children)
+						elseif string.find(child.name, "cargo") then
+							setTrainCarIOData(depot, train, idx, child.children[1].state)
+						end
 					end
 				end
 			end

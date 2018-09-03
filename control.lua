@@ -39,7 +39,7 @@ script.on_event(defines.events.on_tick, function(event)
 		for i, entry in ipairs(depot.entries) do
 			--game.print("Ticking depot " .. entry.storage.name)
 			if entry.type == "item" then
-				tickDepot(entry, event.tick)
+				tickDepot(depot, entry, event.tick)
 			elseif entry.type == "fluid" then
 				tickFluidDepot(depot, entry, event.tick)
 			end
