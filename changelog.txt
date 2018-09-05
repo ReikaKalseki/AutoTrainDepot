@@ -1,0 +1,19 @@
+---------------------------------------------------------------------------------------------------
+Version: 1.0.135
+Date: Sep 5 2018
+	- Depots now manage output inserters to trains as well, 'resetting' them when a station changes trains
+---------------------------------------------------------------------------------------------------
+Version: 1.0.133
+Date: Sep 3 2018
+	- Added ability to choose via GUI whether depots control the red/exclusion filter for wagons, to go with 132's change
+---------------------------------------------------------------------------------------------------
+Version: 1.0.132
+Date: Sep 2 2018
+	- Added ability for cargo wagons to be marked as "fill at depot", which the depot controller will automatically handle to prevent output-type cars from being re-filled at the input side of the depot
+	- Added basic depot type, available earlier game
+	- Rebalanced technology dependencies and recipes
+---------------------------------------------------------------------------------------------------
+Version: 1.0.120
+Date: Aug 21 2018
+	- Added fluid depot controller, to allow for the management of fluid routing at a liquid depot for up to six liquid types per depot
+	- Added a new element to train GUIs to allow for liquid routing control

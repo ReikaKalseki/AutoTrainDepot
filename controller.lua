@@ -85,6 +85,7 @@ end
 local function getInputBelts(depot)
 	if not depot.inputs then depot.inputs = {} end
 	if not depot.loopFeeds then depot.loopFeeds = {} end
+	if not depot.pulls then depot.pulls = {} end
 	
 	local loops = {}
 	
@@ -97,6 +98,7 @@ local function getInputBelts(depot)
 		area.right_bottom.y = area.right_bottom.y+d+storage.position.y
 		
 		local feeds = {}
+		local pulls = {}
 		
 		--[[
 		local belts = storage.surface.find_entities_filtered({type = "transport-belt", area = area, force = storage.force})
@@ -124,6 +126,8 @@ local function getInputBelts(depot)
 				table.insert(feeds, inserter)
 			elseif (inserter.name == "train-unloader" or inserter.name == "dynamic-train-unloader") and inserter.direction == (getRequiredBeltDirection(inserter, storage)+4)%8 then --when not active, drop_target is never set
 				table.insert(feeds, inserter)
+			elseif inserter.pickup_target and inserter.pickup_target == storage then
+				table.insert(pulls, inserter)
 			end
 		end
 		
@@ -187,6 +191,21 @@ local function getInputBelts(depot)
 					
 					--game.print("Connected " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " for item " .. item)
 				end
+			end
+		end
+		
+		for _,pull in pairs(pulls) do -- can be belt OR inserter, nothing else
+			if not depot.pulls[pull.unit_number] then --prevent duplicate or too many entries
+			
+			pull.active = true --turn any disabled entities back on, and enable any unloaders
+					
+			--storage.connect_neighbour({wire = depot.wire, target_entity = feed})
+			
+			depot.outputCount = depot.outputCount and depot.outputCount+1 or 1
+			
+			depot.pulls[pull.unit_number] = {entity = pull, storage = storage}
+			
+			--game.print("Connected " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " for item " .. item)
 			end
 		end
 	end
@@ -526,6 +545,35 @@ local function setTrainFilters(depot, entry)
 	end
 end
 
+local function clearOutputInserters(entry)
+	if not entry.pulls then return end
+	for unit,pull in pairs(entry.pulls) do
+		if pull.entity.valid then
+			if pull.entity.held_stack and pull.entity.held_stack.valid_for_read then
+				local empty = pull.entity.drop_position
+				local area = {{empty.x-1, empty.y-1}, {empty.x+1, empty.y+1}}
+				local rail = pull.entity.surface.find_entities_filtered{type = "straight-rail", limit = 1, area = area}
+				if rail and #rail > 0 then
+					local wagons = pull.entity.surface.find_entities_filtered{type = "cargo-wagon", limit = 1, area = area}
+					if wagons and #wagons > 0 then
+					
+					else
+						--game.print("Adding " .. pull.entity.held_stack.name .. " x" .. pull.entity.held_stack.count)
+						local added = pull.storage.insert(pull.entity.held_stack)
+						if added >= pull.entity.held_stack.count then
+							pull.entity.held_stack.clear()
+						else
+							pull.entity.held_stack.count = pull.entity.held_stack.count-added
+						end
+					end
+				end
+			end
+		else
+			entry.pulls[unit] = nil
+		end
+	end
+end
+
 function tickDepot(depot, entry, tick)	
 	verifyControlSignal(entry)
 	verifyInputsAndStorages(entry)
@@ -533,6 +581,7 @@ function tickDepot(depot, entry, tick)
 	
 	--game.print(input and input.train.id or "nil")
 	setTrainFilters(depot, entry)
+	clearOutputInserters(entry)
 	
 	if entry.storageCount and entry.storageCount > 0 then
 		getInputBelts(entry)
