@@ -57,7 +57,7 @@ local function invalidateTrain(depot, entry)
 	depot.trains[entry.train] = nil
 end
 
-local function getTrainByID(surface, force, id)
+function getTrainByID(surface, force, id)
 	for _,train in pairs(force.get_trains(surface)) do
 		if train.id == id then
 			return train

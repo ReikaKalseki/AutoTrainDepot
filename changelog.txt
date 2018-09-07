@@ -1,4 +1,8 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.138
+Date: Sep 7 2018
+	- Added "train deadlock" and "no path" alerts to indicate when a train has entered am undesirable state and requires manual intervention
+---------------------------------------------------------------------------------------------------
 Version: 1.0.135
 Date: Sep 5 2018
 	- Depots now manage output inserters to trains as well, 'resetting' them when a station changes trains
