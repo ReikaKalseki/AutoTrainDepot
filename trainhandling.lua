@@ -166,6 +166,10 @@ function setTrainGui(depot, player, entity)
 		root.tooltip = "Train #" .. train
 		--root.title_top_padding = 0
 		--root.title_bottom_padding = 0
+		local header0 = root.add{type = "textfield", name = "traingui-title", text = entry.displayName and entry.displayName or "TrainName"}
+		header0.style.height = 34
+		header0.style.width = 220
+		header0.style.align = "center"
 		local header = root.add{type = "flow", name = "traingui-header"}
 		header.style.height = 24
 		local spacer = header.add{type = "sprite", name = "traingui-header-spacer", "utility/empty"}
@@ -225,7 +229,9 @@ local function saveGuiData(depot, player)
 			--game.print("Has entry? " .. (entry and "yes" or "no"))
 			if entry then
 				for i,child in pairs(elem.children) do
-					if i > 1 and child.children and #child.children > 0 then
+					if child.name == "traingui-title" then
+						entry.displayName = child.text
+					elseif i > 1 and child.children and #child.children > 0 then
 						local idx = tonumber(string.sub(child.tooltip, string.len("Car #")+1))
 						--game.print("Car " .. i .. " from " .. idx .. " of " .. child.tooltip .. " which has child #1 " .. child.children[1].name)
 						if string.find(child.name, "fluid") then
