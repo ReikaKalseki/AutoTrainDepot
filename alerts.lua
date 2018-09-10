@@ -1,7 +1,7 @@
 require "config"
 require "trainhandling"
 
-local function playAlert(force, alert, tag, train, from, to, sound)
+local function playAlert(depot, force, alert, tag, train, from, to, sound)
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
 	local name = entry.displayName and entry.displayName or tostring(train.id)
 	for _,player in pairs(force.players) do
@@ -18,7 +18,7 @@ local function raiseTrainAlert(depot, force, train, alert)
 	--game.print("Train #" .. train.id .. " is " .. alert .. " during route from " .. from.station .. " to " .. to.station)
 	local tag = "train-alert." .. alert
 	local alert = "train-alert-" .. alert
-	playAlert(force, alert, tag, train, from, to, true)
+	playAlert(depot, force, alert, tag, train, from, to, true)
 	if not depot.trainAlerts then depot.trainAlerts = {} end
 	table.insert(depot.trainAlerts, {alert = alert, tag = tag, force = force, train = train.id, from = from, to = to, validate = train.state})
 end
@@ -27,7 +27,7 @@ function tickTrainAlerts(depot)
 	for i,alert in ipairs(depot.trainAlerts) do
 		local train = getTrainByID(game.surfaces["nauvis"], alert.force, alert.train)
 		if train and train.state == alert.validate then
-			playAlert(alert.force, alert.alert, alert.tag, train, alert.from, alert.to, i == 1)
+			playAlert(depot, alert.force, alert.alert, alert.tag, train, alert.from, alert.to, i == 1)
 		else
 			table.remove(depot.trainAlerts, i)
 		end

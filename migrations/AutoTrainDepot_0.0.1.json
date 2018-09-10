@@ -1,0 +1,14 @@
+{
+  "item":
+  [
+    ["basic-depot-controller", "depot-controller"]
+  ],
+  "entity":
+  [
+    ["basic-depot-controller", "depot-controller"]
+  ],
+  "recipe":
+  [
+    ["basic-depot-controller", "depot-controller"]
+  ]
+}

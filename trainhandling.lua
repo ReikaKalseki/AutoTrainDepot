@@ -26,11 +26,24 @@ local function createEntry(train)
 	return {train = train.id, name = tostring(train.id), cars = cars, length = #train.carriages, version = ENTRY_VERSION, indices = idxs2}
 end
 
+function getOrCreateCargoOffset(entry, train)
+	if entry.cargoOffset then return entry.cargoOffset end
+	local pos = 2+#train.carriages
+	for i,car in pairs(train.carriages) do
+		if car.type == "fluid-wagon" or car.type == "cargo-wagon" then
+			pos = math.min(pos, i)
+		end
+	end
+	entry.cargoOffset = pos
+	return entry.cargoOffset
+end
+
 local function isValid(entry)
 	return entry and entry.version and entry.version >= ENTRY_VERSION and entry.train and entry.cars and entry.length and entry.name and #entry.cars > 0 and entry.cars[1].type and entry.cars[1].index and entry.cars[1].name
 end
 
 function getOrCreateTrainEntryByTrain(depot, train)
+	if not depot then error(debug.traceback()) end
 	if not depot.trains then depot.trains = {} end
 	local get = depot.trains[train.id]
 	if not isValid(get) then get = nil end

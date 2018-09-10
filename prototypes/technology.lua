@@ -1,96 +1,123 @@
-require "config" 
+require "config"
+require "constants"
 
+local function createTech(name, deps, packs, count)
+	table.insert(packs, {"science-pack-1", 1})
+	table.insert(packs, {"science-pack-2", 1})
+	local effects = {}
+	local ico = "__AutoTrainDepot__/graphics/technology/depot.png"
+	local lvl = tonumber(string.sub(name, -1))
+	local locale = nil
+	if string.find(name, "fluid-count", 1, true) then
+		ico = "__AutoTrainDepot__/graphics/technology/depot-fluid.png"
+		if lvl == 2 then
+			table.insert(deps, "depot-fluid")
+		else
+			table.insert(deps, "depot-fluid-count-" .. (lvl-1))
+		end
+		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-fluid-count", tostring(lvl)}})
+	elseif string.find(name, "item-count", 1, true) then
+		ico = "__AutoTrainDepot__/graphics/technology/depot-items.png"
+		if lvl == 1 then
+			table.insert(deps, "depot-base")
+		else
+			table.insert(deps, "depot-item-count-" .. (lvl-1))
+		end
+		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-item-count", tostring(ITEM_COUNT_TIERS[lvl+1])}})
+	elseif name == "depot-base" then
+		table.insert(effects, {type = "unlock-recipe", recipe = "depot-controller"})
+		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-item-count", tostring(ITEM_COUNT_TIERS[1])}})
+	else
+		table.insert(deps, "depot-base")
+		ico = "__AutoTrainDepot__/graphics/technology/depot-feature.png"
+		if name ~= "depot-fluid" then
+			local id = string.sub(name, string.len("depot-")+1)
+			locale = {"technology-name.depot-power", {"depot-power-name." .. id}}
+			table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-capability", {"depot-power-desc." .. id}}})
+		end
+	end
+	if name == "depot-fluid" then
+		ico = "__AutoTrainDepot__/graphics/technology/depot-fluid.png"
+		table.insert(effects, {type = "unlock-recipe", recipe = "depot-fluid-controller"})
+	end
+	for i,dep in ipairs(deps) do
+		if not data.raw.technology[dep] then
+			log("Removing tech dependency " .. dep .. "; does not exist.")
+			table.remove(deps, i)
+		end
+	end
+	data:extend({
+	{
+		type = "technology",
+		name = name,
+		prerequisites = deps,
+		icon = ico,
+		effects = effects,
+		localised_name = locale,
+		unit =
+		{
+		  count = count,
+		  ingredients = packs,
+		  time = 30
+		},
+		order = "[logistics]-3",
+		icon_size = 128,
+	},
+	})
+end
+
+createTech("depot-base", {"automated-rail-transportation", "circuit-network", "automation-2", "logistics-2", "alloy-processing-1"}, {}, 150)
+createTech("depot-fluid", {"fluid-handling", "advanced-electronics", "nickel-processing"}, {}, 200)
+createTech("depot-redbar-control", {"optics"}, {}, 40)
+createTech("depot-inserter-cleaning", {"more-inserters-1"}, {}, 20)
+createTech("depot-balancing", {"automation-3", "fast-loader"}, {{"science-pack-3", 1}}, 100)
+createTech("depot-dynamic-filters", {"automation-3", "optics"}, {{"science-pack-3", 1}}, 75)
+
+for i = 2,6 do
+	local pack = {}
+	if i >= 4 then
+		if data.raw.tool["logistic-science-pack"] then
+			table.insert(pack, {"logistic-science-pack", 1})
+		else
+			table.insert(pack, {"science-pack-3", 1})
+		end
+	end
+	if i >= 6 then
+		table.insert(pack, {"science-pack-3", 1})
+	end
+	createTech("depot-fluid-count-" .. i, i == 4 and {"logistics-3"} or {}, pack, 50+50*(2^(i-1)))
+end
+
+for i = 1,#ITEM_COUNT_TIERS-1 do
+	local pack = {}
+	if i >= 4 then
+		if data.raw.tool["logistic-science-pack"] then
+			table.insert(pack, {"logistic-science-pack", 1})
+		else
+			table.insert(pack, {"science-pack-3", 1})
+		end
+	end
+	if i >= 6 then
+		table.insert(pack, {"science-pack-3", 1})
+	end
+	if i >= 7 then
+		table.insert(pack, {"high-tech-science-pack", 1})
+	end
+	local dep = {}
+	if i == 4 then
+		table.insert(dep, "logistics-3")
+	end
+	if i == 6 then
+		table.insert(dep, "bob-logistics-4")
+	end
+	if i == 7 then
+		table.insert(dep, "bob-logistics-5")
+	end
+	createTech("depot-item-count-" .. i, dep, pack, 25*2^i)
+end
+
+--[[
 data:extend({
-	{
-		type = "technology",
-		name = "depot-base",
-		prerequisites =
-		{
-			"automated-rail-transportation",
-			"circuit-network",
-		},
-		icon = "__AutoTrainDepot__/graphics/technology/depot.png",
-		effects =
-		{
-			{
-				type = "unlock-recipe",
-				recipe = "basic-depot-controller"
-			},
-		},
-		unit =
-		{
-		  count = 150,
-		  ingredients =
-		  {
-			{"science-pack-1", 1},
-			{"science-pack-2", 1},
-		  },
-		  time = 20
-		},
-		order = "[logistics]-3",
-		icon_size = 128,
-	},
-	{
-		type = "technology",
-		name = "depot",
-		prerequisites =
-		{
-			"logistics-3",
-			"depot-base",
-			"advanced-electronics",
-		},
-		icon = "__AutoTrainDepot__/graphics/technology/depot.png",
-		effects =
-		{
-			{
-				type = "unlock-recipe",
-				recipe = "depot-controller"
-			},
-		},
-		unit =
-		{
-		  count = 200,
-		  ingredients =
-		  {
-			{"science-pack-1", 1},
-			{"science-pack-2", 1},
-			{"science-pack-3", 1},
-		  },
-		  time = 20
-		},
-		order = "[logistics]-3",
-		icon_size = 128,
-	},
-	{
-		type = "technology",
-		name = "fluid-depot",
-		prerequisites =
-		{
-			"depot",
-			"fluid-handling",
-		},
-		icon = "__AutoTrainDepot__/graphics/technology/depot.png",
-		effects =
-		{
-			{
-				type = "unlock-recipe",
-				recipe = "depot-fluid-controller"
-			}
-		},
-		unit =
-		{
-		  count = 200,
-		  ingredients =
-		  {
-			{"science-pack-1", 1},
-			{"science-pack-2", 1},
-			{"science-pack-3", 1},
-		  },
-		  time = 20
-		},
-		order = "[logistics]-3",
-		icon_size = 128,
-	},--[[
 	{
 		type = "technology",
 		name = "large-depot",
@@ -119,8 +146,8 @@ data:extend({
 		},
 		order = "[logistics]-3",
 		icon_size = 128,
-	},--]]
-})
+	},
+})--]]
 
 if Config.unloader then
 data:extend({

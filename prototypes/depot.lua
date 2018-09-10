@@ -17,9 +17,11 @@ data:extend({
 	energy_required = 4,
     ingredients =
     {
-      {"basic-depot-controller", 1},
-      {"advanced-circuit", 10},
-      {"red-wire", 40},
+      {"arithmetic-combinator", 2},
+      {"engine-unit", 4},
+      {"fast-transport-belt", 20},
+      {"electronic-circuit", 50},
+      {"red-wire", 20},
     },
     result = "depot-controller"
   }
@@ -125,13 +127,5 @@ data:extend({
 	icon_size = 32,
     subgroup = "virtual-signal-special",
     order = "depot-divisions",
-  },--[[
-  { --for display in the circuit gui
-    type = "virtual-signal",
-    name = "free-inv-slots",
-    icon = "__AutoTrainDepot__/graphics/icons/freeslots.png",
-	icon_size = 32,
-    subgroup = "virtual-signal-special",
-    order = "free-inv-slots",
-  }--]]
+  }
 })

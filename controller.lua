@@ -1,7 +1,16 @@
 require "config"
+require "constants"
 require "trainhandling"
 
 local balanceRate = 600 --10s
+
+local function getControllableItemTypes(force)
+	for i = #ITEM_COUNT_TIERS-1,1,-1 do
+		local tech = force.technologies["depot-item-count-" .. i]
+		if tech.researched then return ITEM_COUNT_TIERS[i+1] end
+	end
+	return ITEM_COUNT_TIERS[1]
+end
 
 local function getRequiredBeltDirection(belt, entity)
 	local dx = belt.position.x-entity.position.x

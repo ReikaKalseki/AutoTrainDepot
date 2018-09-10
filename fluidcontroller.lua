@@ -1,18 +1,29 @@
 require "config"
 require "trainhandling"
 
+local function getControllableFluidTypes(force)
+	for i = 6,1,-1 do
+		local tech = force.technologies["depot-fluid-count-" .. i]
+		if tech.researched then return i end
+	end
+	return 1
+end
+
 local function getValue(depot, entry2, i)
 	if not entry2 then return 0 end
 	local entry = getOrCreateTrainEntryByTrain(depot, entry2.train)
 	local ret = 0
 	if entry then
+		local offset = getOrCreateCargoOffset(entry, entry2.train)-2
+		--game.print(offset)
 		for idx,car in pairs(entry.cars) do
 			if car.type == "fluid-wagon" then
 				--game.print("Checking car #" .. car.index .. ": " .. car.type)
 				local data = getTrainCarFilterData(depot, entry2.train, car.index)
 				if data and data == i then
-					ret = ret+(2^(car.index-1))
-					--game.print("Car space " .. idx .. " wagon index " .. car.index .. " of train " .. entry2.train.id .. " filtered to slot " .. data)
+					local bit = (car.position-1)+offset-1
+					--game.print("Car space " .. idx .. " wagon index " .. car.index .. " (pos " .. car.position .. ") of train " .. entry2.train.id .. " filtered to slot " .. data .. " for bit " .. bit)
+					ret = ret+2^bit
 				end
 			end
 		end
