@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.144
+Date: Sep 10 2018
+	- Redesigned capability and technology system - there is now only one depot type, with capabilities unlocked by researches
+	- Fixed crash with Picker Extended
+	- Trains can now be given Display Names
+---------------------------------------------------------------------------------------------------
 Version: 1.0.138
 Date: Sep 7 2018
 	- Added "train deadlock" and "no path" alerts to indicate when a train has entered am undesirable state and requires manual intervention

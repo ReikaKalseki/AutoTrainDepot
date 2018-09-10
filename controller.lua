@@ -4,6 +4,10 @@ require "trainhandling"
 
 local balanceRate = 600 --10s
 
+local function isPowerAvailable(force, power)
+	return force.technologies["depot-" .. power].researched
+end
+
 local function getControllableItemTypes(force)
 	for i = #ITEM_COUNT_TIERS-1,1,-1 do
 		local tech = force.technologies["depot-item-count-" .. i]
@@ -376,8 +380,9 @@ local function verifyControlSignal(entry)
 		control.set_signal(1, {signal = {type = "virtual", name = "depot-divisions"}, count = set.signal.count})
 	end
 	
-	if entry.basic and control.get_signal(1).count > 20 then
-		control.set_signal(1, {signal = {type = "virtual", name = "depot-divisions"}, count = 20})
+	local limit = getControllableItemTypes(entry.controller.force)
+	if control.get_signal(1).count > limit then
+		control.set_signal(1, {signal = {type = "virtual", name = "depot-divisions"}, count = limit})
 	end
 	
 	--[[
@@ -415,7 +420,7 @@ local function verifyInputsAndStorages(depot)
 				rem = true
 				depot.inputCount = depot.inputCount-1
 				--game.print("Removing invalid input " .. key .. " to " .. input.entity.name)
-			elseif input.entity.type == "inserter" and (not depot.basic) then -- input.entity.name == "dynamic-train-unloader"
+			elseif input.entity.type == "inserter" and isPowerAvailable(entry.controller.force, "dynamic-filters") then -- input.entity.name == "dynamic-train-unloader"
 				local src = input.entity.pickup_target
 				if src and src.type == "cargo-wagon" then
 					local inv = src.get_inventory(defines.inventory.cargo_wagon)
@@ -427,7 +432,7 @@ local function verifyInputsAndStorages(depot)
 						end
 					end
 				end
-			elseif input.entity.type == "loader" and (not depot.basic) then
+			elseif input.entity.type == "loader" and isPowerAvailable(entry.controller.force, "dynamic-filters") then
 				local belt = getLoaderFeed(loader)
 				local src = input.entity.pickup_target
 				if src and src.type == "cargo-wagon" then
@@ -594,7 +599,7 @@ function tickDepot(depot, entry, tick)
 	
 	if entry.storageCount and entry.storageCount > 0 then
 		getInputBelts(entry)
-		if (not entry.basic) and tick%balanceRate == entry.controller.unit_number%balanceRate then
+		if isPowerAvailable(entry.controller.force, "balancing") and tick%balanceRate == entry.controller.unit_number%balanceRate then
 			--manageLoopFeeds(entry)
 			balanceStorages(entry)
 		end

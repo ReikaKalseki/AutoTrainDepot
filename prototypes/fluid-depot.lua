@@ -5,6 +5,8 @@ local function createFluidSignals(i)
 	local output = table.deepcopy(input)
 	output.name = string.gsub(output.name, "in", "out")
 	output.icons[3].icon = string.gsub(output.icons[3].icon, "input", "output")
+	input.order = "ifluid-i"
+	output.order = "ofluid-i"
 	data:extend({input, output})
 end
 

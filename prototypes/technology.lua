@@ -8,6 +8,7 @@ local function createTech(name, deps, packs, count)
 	local ico = "__AutoTrainDepot__/graphics/technology/depot.png"
 	local lvl = tonumber(string.sub(name, -1))
 	local locale = nil
+	local upgrade = false
 	if string.find(name, "fluid-count", 1, true) then
 		ico = "__AutoTrainDepot__/graphics/technology/depot-fluid.png"
 		if lvl == 2 then
@@ -15,6 +16,7 @@ local function createTech(name, deps, packs, count)
 		else
 			table.insert(deps, "depot-fluid-count-" .. (lvl-1))
 		end
+		upgrade = true
 		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-fluid-count", tostring(lvl)}})
 	elseif string.find(name, "item-count", 1, true) then
 		ico = "__AutoTrainDepot__/graphics/technology/depot-items.png"
@@ -23,6 +25,7 @@ local function createTech(name, deps, packs, count)
 		else
 			table.insert(deps, "depot-item-count-" .. (lvl-1))
 		end
+		upgrade = true
 		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-item-count", tostring(ITEM_COUNT_TIERS[lvl+1])}})
 	elseif name == "depot-base" then
 		table.insert(effects, {type = "unlock-recipe", recipe = "depot-controller"})
@@ -54,6 +57,7 @@ local function createTech(name, deps, packs, count)
 		icon = ico,
 		effects = effects,
 		localised_name = locale,
+		upgrade = upgrade,
 		unit =
 		{
 		  count = count,
@@ -75,7 +79,7 @@ createTech("depot-dynamic-filters", {"automation-3", "optics"}, {{"science-pack-
 
 for i = 2,6 do
 	local pack = {}
-	if i >= 4 then
+	if i >= 5 then
 		if data.raw.tool["logistic-science-pack"] then
 			table.insert(pack, {"logistic-science-pack", 1})
 		else
@@ -85,7 +89,7 @@ for i = 2,6 do
 	if i >= 6 then
 		table.insert(pack, {"science-pack-3", 1})
 	end
-	createTech("depot-fluid-count-" .. i, i == 4 and {"logistics-3"} or {}, pack, 50+50*(2^(i-1)))
+	createTech("depot-fluid-count-" .. i, i == 5 and {"logistics-3"} or {}, pack, math.floor((10*(1.5^(i-1)))/5)*5)
 end
 
 for i = 1,#ITEM_COUNT_TIERS-1 do

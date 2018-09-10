@@ -2,14 +2,15 @@ require "config"
 require "trainhandling"
 
 local function getControllableFluidTypes(force)
-	for i = 6,1,-1 do
+	for i = 6,2,-1 do
 		local tech = force.technologies["depot-fluid-count-" .. i]
 		if tech.researched then return i end
 	end
 	return 1
 end
 
-local function getValue(depot, entry2, i)
+local function getValue(depot, entry, entry2, i)
+	if i > getControllableFluidTypes(entry.controller.force) then return 0 end
 	if not entry2 then return 0 end
 	local entry = getOrCreateTrainEntryByTrain(depot, entry2.train)
 	local ret = 0
@@ -35,8 +36,8 @@ local function sendControlSignals(depot, input, output, entry)
 	local control = entry.controller.get_control_behavior()
 	for i = 1,6 do
 		--game.print("Output Channel " .. i .. ": " .. getValue(depot, output, i))
-		control.set_signal(i, {signal = {type = "virtual", name = "signal-fluid-in" .. i}, count = getValue(depot, input, i)})
-		control.set_signal(i+6, {signal = {type = "virtual", name = "signal-fluid-out" .. i}, count = getValue(depot, output, i)})
+		control.set_signal(i, {signal = {type = "virtual", name = "signal-fluid-in" .. i}, count = getValue(depot, entry, input, i)})
+		control.set_signal(i+6, {signal = {type = "virtual", name = "signal-fluid-out" .. i}, count = getValue(depot, entry, output, i)})
 	end
 end
 
