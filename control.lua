@@ -4,7 +4,7 @@ require "controller"
 require "fluidcontroller"
 require "alerts"
 
-local tickRate = 60--300--60
+tickRate = 60--300--60
 
 function initGlobal(markDirty)
 	if not global.depot then
@@ -46,11 +46,16 @@ script.on_event(defines.events.on_tick, function(event)
 			end
 		end
 	end
-	if event.tick%7200 == 0 then --2 min
-		checkTrainAlerts(depot)
-	end
-	if depot.trainAlerts and #depot.trainAlerts > 0 and event.tick%300 == 0 then
-		tickTrainAlerts(depot)
+	for _,force in pairs(game.forces) do
+		if force.technologies["train-alarms"].researched then
+			local fired = false
+			if event.tick%600 == 0 then --10s
+				fired = checkTrainAlerts(depot, event.tick, force)
+			end
+			if depot.trainAlerts and event.tick%300 == 0 then
+				tickTrainAlerts(depot, (not fired), force)
+			end
+		end
 	end
 end)
 

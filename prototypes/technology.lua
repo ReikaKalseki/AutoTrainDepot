@@ -153,6 +153,35 @@ data:extend({
 	},
 })--]]
 
+data:extend({
+	{
+		type = "technology",
+		name = "train-alarms",
+		prerequisites =
+		{
+			"railway",
+			"circuit-network"
+		},
+		icon = "__AutoTrainDepot__/graphics/technology/alarms.png",
+		effects =
+		{
+		
+		},
+		unit =
+		{
+		  count = 50,
+		  ingredients =
+		  {
+			{"science-pack-1", 1},
+			{"science-pack-2", 1},
+		  },
+		  time = 30
+		},
+		order = "[railway]-3",
+		icon_size = 128,
+	},
+})
+
 if Config.unloader then
 data:extend({
 	{

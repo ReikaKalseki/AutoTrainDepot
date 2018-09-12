@@ -5,6 +5,7 @@ require "trainhandling"
 local balanceRate = 600 --10s
 
 local function isPowerAvailable(force, power)
+	--game.print("Checking power " .. power .. ": " .. (force.technologies["depot-" .. power].researched and "has" or "no"))
 	return force.technologies["depot-" .. power].researched
 end
 
@@ -420,7 +421,7 @@ local function verifyInputsAndStorages(depot)
 				rem = true
 				depot.inputCount = depot.inputCount-1
 				--game.print("Removing invalid input " .. key .. " to " .. input.entity.name)
-			elseif input.entity.type == "inserter" and isPowerAvailable(entry.controller.force, "dynamic-filters") then -- input.entity.name == "dynamic-train-unloader"
+			elseif input.entity.type == "inserter" and isPowerAvailable(depot.controller.force, "dynamic-filters") then -- input.entity.name == "dynamic-train-unloader"
 				local src = input.entity.pickup_target
 				if src and src.type == "cargo-wagon" then
 					local inv = src.get_inventory(defines.inventory.cargo_wagon)
@@ -432,7 +433,7 @@ local function verifyInputsAndStorages(depot)
 						end
 					end
 				end
-			elseif input.entity.type == "loader" and isPowerAvailable(entry.controller.force, "dynamic-filters") then
+			elseif input.entity.type == "loader" and isPowerAvailable(depot.controller.force, "dynamic-filters") then
 				local belt = getLoaderFeed(loader)
 				local src = input.entity.pickup_target
 				if src and src.type == "cargo-wagon" then
@@ -463,6 +464,7 @@ local function balanceStorages(depot)
 		end
 		div = div+1
 	end
+	--log(serpent.block(amounts))
 	for _,storage in pairs(depot.storages) do
 		local inv = storage.get_inventory(defines.inventory.chest)
 		inv.clear()
@@ -485,6 +487,17 @@ local function balanceStorages(depot)
 			end
 		end
 	end
+	--[[
+	amounts = {}
+	for _,storage in pairs(depot.storages) do
+		local has = storage.get_inventory(defines.inventory.chest).get_contents()
+		for type,amt in pairs(has) do
+			local old = amounts[type] and amounts[type] or 0
+			amounts[type] = old+amt
+		end
+	end
+	log(serpent.block(amounts))
+	--]]
 end
 
 local function countFreeSlots(cache, chest)
@@ -599,7 +612,8 @@ function tickDepot(depot, entry, tick)
 	
 	if entry.storageCount and entry.storageCount > 0 then
 		getInputBelts(entry)
-		if isPowerAvailable(entry.controller.force, "balancing") and tick%balanceRate == entry.controller.unit_number%balanceRate then
+		--game.print("Comparing " .. tick .. " = " .. tick%balanceRate .. " vs " .. (entry.controller.unit_number-entry.controller.unit_number%tickRate) .. " to " .. (entry.controller.unit_number-entry.controller.unit_number%tickRate)%balanceRate)
+		if tick%balanceRate == (entry.controller.unit_number-entry.controller.unit_number%tickRate)%balanceRate and isPowerAvailable(entry.controller.force, "balancing") then
 			--manageLoopFeeds(entry)
 			balanceStorages(entry)
 		end
