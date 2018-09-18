@@ -79,14 +79,16 @@ createTech("depot-dynamic-filters", {"automation-3", "optics"}, {{"science-pack-
 
 for i = 2,6 do
 	local pack = {}
+	local pack3 = false
 	if i >= 5 then
 		if data.raw.tool["logistic-science-pack"] then
 			table.insert(pack, {"logistic-science-pack", 1})
 		else
 			table.insert(pack, {"science-pack-3", 1})
+			pack3 = true
 		end
 	end
-	if i >= 6 then
+	if i >= 6 and not pack3 then
 		table.insert(pack, {"science-pack-3", 1})
 	end
 	createTech("depot-fluid-count-" .. i, i == 5 and {"logistics-3"} or {}, pack, math.floor((10*(1.5^(i-1)))/5)*5)

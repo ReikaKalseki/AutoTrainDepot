@@ -1,6 +1,7 @@
 require "config"
 require "constants"
 require "trainhandling"
+require "belthandling"
 
 local balanceRate = 600 --10s
 
@@ -15,72 +16,6 @@ local function getControllableItemTypes(force)
 		if tech.researched then return ITEM_COUNT_TIERS[i+1] end
 	end
 	return ITEM_COUNT_TIERS[1]
-end
-
-local function getRequiredBeltDirection(belt, entity)
-	local dx = belt.position.x-entity.position.x
-	local dy = belt.position.y-entity.position.y
-	if math.abs(dx) == math.abs(dy) then --diagonal, no possible connection
-		return -1
-	end
-	if math.abs(dx) > math.abs(dy) then --dx is bigger, on east or west side
-		if dx > 0 then --east
-			return defines.direction.west
-		else
-			return defines.direction.east
-		end
-	else
-		if dy > 0 then --south
-			return defines.direction.north
-		else
-			return defines.direction.south
-		end
-	end
-end
-
---[[
-local function checkLoaderFeed(belt, entity)
-	local dx = math.abs(belt.position.x-entity.position.x)
-	local dy = math.abs(belt.position.y-entity.position.y)
-	if belt.direction == defines.direction.east then
-		return dx == 3+size
-	elseif belt.direction == defines.direction.west then
-		return dx == 3+size
-	elseif belt.direction == defines.direction.south then
-		return dy == 3+size
-	elseif belt.direction == defines.direction.north then
-		return dy == 3+size
-	end
-end
---]]
-
-local function isOnSide(belt, entity)
-	local area = game.entity_prototypes[entity.name].collision_box
-	area.left_top.x = area.left_top.x+entity.position.x
-	area.right_bottom.x = area.right_bottom.x+entity.position.x
-	area.left_top.y = area.left_top.y+entity.position.y
-	area.right_bottom.y = area.right_bottom.y+entity.position.y
-	--game.print(belt.position.x .. " , " .. belt.position.y .. " in [" .. area.left_top.x .. " , " .. area.left_top.y .. " > " .. area.right_bottom.x .. " , " .. area.right_bottom.y .. "]")
-	return (area.left_top.x <= belt.position.x and area.right_bottom.x >= belt.position.x) or (area.left_top.y <= belt.position.y and area.right_bottom.y >= belt.position.y)-- and (not loader or checkLoaderFeed(belt, entity))
-end
-
-local function getLoaderFeed(loader)
-	local area = {{loader.position.x-0.25, loader.position.y-0.25}, {loader.position.x+0.25, loader.position.y+0.25}}
-	if loader.direction == defines.direction.east then
-		area[1][1] = area[1][1]-1
-		area[2][1] = area[2][1]-1
-	elseif loader.direction == defines.direction.west then
-		area[1][1] = area[1][1]+1
-		area[2][1] = area[2][1]+1
-	elseif loader.direction == defines.direction.south then
-		area[1][2] = area[1][2]-1
-		area[2][2] = area[2][2]-1
-	elseif loader.direction == defines.direction.north then
-		area[1][2] = area[1][2]+1
-		area[2][2] = area[2][2]+1
-	end
-	local belts = loader.surface.find_entities_filtered({type = "transport-belt", area = area, force = loader.force, limit = 1})
-	return #belts > 0 and belts[1] or nil
 end
 
 local function getInputThreshold(depot, item)
@@ -230,23 +165,28 @@ local function getInputBelts(depot)
 end
 
 local function setInputItem(depot, input, item)
-	if input.item ~= item then
-		--game.print("Setting input " .. input.entity.name .. " from " .. (input.item and input.item or "nil") .. " to " .. (item and item or "nil"))
-	
-		input.item = item
-		
-		--if input.entity.name == "dynamic-train-unloader" then
-			input.entity.set_filter(1, item)
-		--end
-	end
-	
-	local val = getInputThreshold(depot, input.item)
-	if input.limit then
-		--game.print("Updating input limit for " .. unit .. " of type " .. input.item .. " from " .. input.limit .. " to " .. val)
-	end
-	input.limit = val
 	local control = input.entity.get_control_behavior()
-	control.circuit_condition = {condition={comparator="<", first_signal={type="item", name=input.item}, constant=input.limit}}
+	if item == nil then
+		input.item = nil
+		control.circuit_condition = {condition={comparator="=", first_signal={type="item", name="rocket-part"}, constant=-973}}
+	else
+		if input.item ~= item then
+			--game.print("Setting input " .. input.entity.name .. " from " .. (input.item and input.item or "nil") .. " to " .. (item and item or "nil"))
+		
+			input.item = item
+			
+			--if input.entity.name == "dynamic-train-unloader" then
+				input.entity.set_filter(1, item)
+			--end
+		end
+		
+		local val = getInputThreshold(depot, input.item)
+		if input.limit then
+			--game.print("Updating input limit for " .. unit .. " of type " .. input.item .. " from " .. input.limit .. " to " .. val)
+		end
+		input.limit = val
+		control.circuit_condition = {condition={comparator="<", first_signal={type="item", name=input.item}, constant=input.limit}}
+	end
 end
 
 local function getCombinatorOutput(entity)
@@ -402,6 +342,10 @@ local function verifyControlSignal(entry)
 	--]]
 end
 
+local function isFull(storage)
+	return not storage.get_inventory(defines.inventory.chest).can_insert({name="blueprint", count=1})
+end
+
 local function verifyInputsAndStorages(depot)
 	if depot.storages then
 		for unit,storage in pairs(depot.storages) do
@@ -412,6 +356,9 @@ local function verifyInputsAndStorages(depot)
 		end
 	end
 	
+	depot.wasFull = depot.isFull
+	depot.isFull = false
+	
 	if depot.inputs then
 		local rem = false
 		for key,input in pairs(depot.inputs) do
@@ -421,7 +368,11 @@ local function verifyInputsAndStorages(depot)
 				rem = true
 				depot.inputCount = depot.inputCount-1
 				--game.print("Removing invalid input " .. key .. " to " .. input.entity.name)
-			elseif input.entity.type == "inserter" and isPowerAvailable(depot.controller.force, "dynamic-filters") then -- input.entity.name == "dynamic-train-unloader"
+			elseif isFull(input.storage) then
+				--game.print("Storage is full!")
+				setInputItem(depot, input, nil)
+				depot.isFull = true
+			elseif input.entity.type == "inserter" and (depot.wasFull or isPowerAvailable(depot.controller.force, "dynamic-filters")) then -- input.entity.name == "dynamic-train-unloader"
 				local src = input.entity.pickup_target
 				if src and src.type == "cargo-wagon" then
 					local inv = src.get_inventory(defines.inventory.cargo_wagon)
@@ -433,14 +384,16 @@ local function verifyInputsAndStorages(depot)
 						end
 					end
 				end
-			elseif input.entity.type == "loader" and isPowerAvailable(depot.controller.force, "dynamic-filters") then
-				local belt = getLoaderFeed(loader)
-				local src = input.entity.pickup_target
-				if src and src.type == "cargo-wagon" then
+			elseif input.entity.type == "transport-belt" and (depot.wasFull or isPowerAvailable(depot.controller.force, "dynamic-filters")) then
+				local loader = getLoaderSource(input.entity, true)
+				local src = loader and getLoaderFeed(loader, "cargo-wagon", 2) or nil
+				if src then
+					--game.print(serpent.block(src.get_inventory(defines.inventory.cargo_wagon).get_contents()))
 					local inv = src.get_inventory(defines.inventory.cargo_wagon)
 					if inv then
 						local items = inv.get_contents()
 						for item,num in pairs(items) do
+							--game.print("Setting " .. item)
 							setInputItem(depot, input, item)
 							break
 						end
@@ -454,6 +407,7 @@ end
 local function balanceStorages(depot)
 	local amounts = {}
 	local totals = {}
+	local counts = {}
 	local div = 0
 	for _,storage in pairs(depot.storages) do
 		local has = storage.get_inventory(defines.inventory.chest).get_contents()
@@ -473,6 +427,8 @@ local function balanceStorages(depot)
 			if add > 0 then
 				local added = inv.insert({name = type, count = add})
 				totals[type] = totals[type]-added
+				--amounts[type] = totals[type]
+				counts[type] = totals[type]
 			end
 		end
 	end
@@ -483,8 +439,15 @@ local function balanceStorages(depot)
 				local added = inv.insert({name = type, count = amt})
 				totals[type] = totals[type]-added
 				amounts[type] = totals[type]
+				counts[type] = totals[type]
 				if amounts[type] <= 0 then break end
 			end
+		end
+	end
+	for type,amt in pairs(counts) do --leftover
+		if amt > 0 then
+			depot.controller.force.print("Depot had excesss of " .. amt .. " " .. type .. ", which it had to spill to avoid voiding!")
+			depot.controller.surface.spill_item_stack(depot.controller.position, {name=type, count=amt}, true, depot.controller.force)
 		end
 	end
 	--[[
@@ -613,7 +576,7 @@ function tickDepot(depot, entry, tick)
 	if entry.storageCount and entry.storageCount > 0 then
 		getInputBelts(entry)
 		--game.print("Comparing " .. tick .. " = " .. tick%balanceRate .. " vs " .. (entry.controller.unit_number-entry.controller.unit_number%tickRate) .. " to " .. (entry.controller.unit_number-entry.controller.unit_number%tickRate)%balanceRate)
-		if tick%balanceRate == (entry.controller.unit_number-entry.controller.unit_number%tickRate)%balanceRate and isPowerAvailable(entry.controller.force, "balancing") then
+		if (not entry.isFull) and tick%balanceRate == (entry.controller.unit_number-entry.controller.unit_number%tickRate)%balanceRate and isPowerAvailable(entry.controller.force, "balancing") then
 			--manageLoopFeeds(entry)
 			balanceStorages(entry)
 		end

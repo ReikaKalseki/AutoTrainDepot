@@ -1,19 +1,23 @@
 require "config"
 require "trainhandling"
 
-local function locomotiveHasFuel(loco)
-	return loco.energy > 0 or (loco.burner and loco.burner.remaining_burning_fuel > 0)
+local function locomotiveHasNoFuel(loco)
+	return loco.energy == 0 or (loco.burner and loco.burner.remaining_burning_fuel <= 0)
 end
 
 local function isTrainUnfueled(train)
-	if train.speed ~= 0 then return false end
+	if train.speed ~= 0 or train.manual_mode or not train.locomotives then return false end
+	if train.locomotives["front_movers"] then
 	for _,loco in pairs(train.locomotives["front_movers"]) do
-		if locomotiveHasFuel(loco) then return false end
+		if locomotiveHasNoFuel(loco) then return true end
 	end
+	end
+	if train.locomotives["back_movers"] then
 	for _,loco in pairs(train.locomotives["back_movers"]) do
-		if locomotiveHasFuel(loco) then return false end
+		if locomotiveHasNoFuel(loco) then return true end
 	end
-	return true
+	end
+	return false
 end
 
 local function playAlert(depot, force, alert, tag, train, from, to, sound)

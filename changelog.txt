@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.148
+Date: Sep 18 2018
+	- Fixed crash without BobMods
+	- Depot can now handle winding input belts
+	- Made "no fuel" train alert more selective
+---------------------------------------------------------------------------------------------------
 Version: 1.0.144
 Date: Sep 10 2018
 	- Redesigned capability and technology system - there is now only one depot type, with capabilities unlocked by researches
