@@ -72,10 +72,11 @@ end
 
 createTech("depot-base", {"automated-rail-transportation", "circuit-network", "automation-2", "logistics-2", "alloy-processing-1"}, {}, 150)
 createTech("depot-fluid", {"fluid-handling", "advanced-electronics", "nickel-processing"}, {}, 200)
-createTech("depot-redbar-control", {"optics"}, {}, 40)
-createTech("depot-inserter-cleaning", {"more-inserters-1"}, {}, 20)
-createTech("depot-balancing", {"automation-3", "fast-loader"}, {{"science-pack-3", 1}}, 100)
-createTech("depot-dynamic-filters", {"automation-3", "optics"}, {{"science-pack-3", 1}}, 75)
+createTech("depot-redbar-control", {"optics"}, {}, 50)
+createTech("depot-inserter-cleaning", {"more-inserters-1"}, {}, 25)
+createTech("depot-balancing", {"automation-3", "fast-loader"}, {{"science-pack-3", 1}}, 200)
+createTech("depot-dynamic-filters", {"automation-3", "optics"}, {{"science-pack-3", 1}}, 80)
+createTech("depot-cargo-filters", {"automation-3"}, {}, 100)
 
 for i = 2,6 do
 	local pack = {}
@@ -91,7 +92,7 @@ for i = 2,6 do
 	if i >= 6 and not pack3 then
 		table.insert(pack, {"science-pack-3", 1})
 	end
-	createTech("depot-fluid-count-" .. i, i == 5 and {"logistics-3"} or {}, pack, math.floor((10*(1.5^(i-1)))/5)*5)
+	createTech("depot-fluid-count-" .. i, i == 5 and {"logistics-3"} or {}, pack, math.floor((30*(1.5^(i-1)))/5)*5)
 end
 
 for i = 1,#ITEM_COUNT_TIERS-1 do
@@ -119,7 +120,7 @@ for i = 1,#ITEM_COUNT_TIERS-1 do
 	if i == 7 then
 		table.insert(dep, "bob-logistics-5")
 	end
-	createTech("depot-item-count-" .. i, dep, pack, 25*2^i)
+	createTech("depot-item-count-" .. i, dep, pack, 50*2^i)
 end
 
 --[[

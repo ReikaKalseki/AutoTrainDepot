@@ -29,3 +29,10 @@ if data.raw.item["nickel-plate"] then
 else
 	table.insert(data.raw.recipe["depot-fluid-controller"].ingredients, {"steel-plate", 40})
 end
+
+if Config.blockStations then
+	local blocks = {"stopped_manually_controlled_train_without_passenger_penalty", "train_in_station_penalty", "train_in_station_with_no_other_valid_stops_in_schedule", "train_with_no_path_penalty"}
+	for _,k in pairs(blocks) do
+		data.raw["utility-constants"].default.train_path_finding[k] = 999999999
+	end
+end

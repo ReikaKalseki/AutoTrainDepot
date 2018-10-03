@@ -26,6 +26,23 @@ local function createEntry(train)
 	return {train = train.id, name = tostring(train.id), cars = cars, length = #train.carriages, version = ENTRY_VERSION, indices = idxs2}
 end
 
+local function getOrCreateWagonList(entry)
+	if entry.wagonList == nil then
+		entry.wagonList = {}
+		for _,car in pairs(entry.cars) do
+			entry.wagonList[car.unit] = car.position
+		end
+	end
+	return entry.wagonList
+end
+
+function getIndexedCarByWagon(depot, entity)
+	local entry = getOrCreateTrainEntryByTrain(depot, entity.train)
+	local li = getOrCreateWagonList(entry)
+	local idx = li[entity.unit_number]
+	return idx and entry.cars[idx] or nil
+end
+
 function getOrCreateCargoOffset(entry, train)
 	if entry.cargoOffset then return entry.cargoOffset end
 	local pos = 2+#train.carriages
@@ -92,6 +109,13 @@ local function getTrainIOData(depot, train)
 	return entry.io
 end
 
+function getTrainItemFilterData(depot, train)
+	assert(train ~= nil)
+	local entry = getOrCreateTrainEntryByTrain(depot, train)
+	if not entry.item_filters then entry.item_filters = {} end
+	return entry.item_filters
+end
+
 function getTrainCarFilterData(depot, train, car)
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
 	local idx = entry.indices["fluid-wagon"][car]
@@ -108,8 +132,18 @@ function getTrainCarIOData(depot, train, car)
 	if entry.cars[idx] == nil or entry.cars[idx].type ~= "cargo-wagon" then return nil end
 	local filters = getTrainIOData(depot, train)
 	--game.print("loaded stored filter " .. (filters[car] and filters[car] or "nil") .. " for car " .. car)
-	if not filters[car] or type(filters[car]) ~= "table" then filters[car] = {autoControl = false, shouldFill = false} end
+	if not filters[car] or type(filters[car]) ~= "table" then filters[car] = {autoControl = false, shouldFill = false, allowExtraction = true} end
 	return filters[car]
+end
+
+function getTrainCarItemFilterData(depot, train, car, station)
+	local entry = getOrCreateTrainEntryByTrain(depot, train)
+	local idx = entry.indices["cargo-wagon"][car]
+	if entry.cars[idx] == nil or entry.cars[idx].type ~= "cargo-wagon" then return nil end
+	local filters = getTrainItemFilterData(depot, train)
+	--game.print("loaded stored item filter " .. (filters[car] and filters[car] or "nil") .. " for car " .. car)
+	if not filters[car] or type(filters[car]) ~= "table" then filters[car] = {} end
+	return filters[car][station]
 end
 
 local function setTrainCarFilterData(depot, train, car, options)
@@ -125,10 +159,20 @@ local function setTrainCarFilterData(depot, train, car, options)
 	filters[car] = slot
 end
 
-local function setTrainCarIOData(depot, train, car, auto, fill)
+local function setTrainCarIOData(depot, train, car, auto, fill, extr)
 	--game.print("Setting filter for car " .. car .. " to " .. slot)
 	local filters = getTrainIOData(depot, train)
-	filters[car] = {autoControl = auto, shouldFill = fill}
+	filters[car] = {autoControl = auto, shouldFill = fill, allowExtraction = extr}
+end
+
+local function setTrainCarItemFilterData(depot, train, car, guis)
+	local data = {}
+	for i,elem in pairs(guis) do
+		--game.print(elem.name .. " type " .. elem.type .. " : " .. i .. " > " .. (elem.elem_value and elem.elem_value or "nil") .. " type " .. elem.elem_type)
+		data[i] = elem.elem_value
+	end
+	local filters = getTrainItemFilterData(depot, train)
+	filters[car] = data
 end
 
 function handleTrainGUIState(event)
@@ -147,10 +191,71 @@ function handleTrainGUIState(event)
 	end
 end
 
+local function createFilterGui(depot, player, entry)
+	if entry then		
+		local train = entry.train
+		assert(train ~= nil)
+		--game.print("Trying " .. train .. " from " .. entity.name .. " # " .. entity.unit_number)
+		local obj = getTrainByID(player.force, player.surface, train)
+		if not obj then
+			invalidateTrain(depot, entry)
+			entry = getOrCreateTrainEntry(depot, entity)
+			train = entry.train
+			obj = getTrainByID(player.force, player.surface, train)
+			if not obj then game.print("still no train with id " .. train .. "!!") end
+		end
+		assert(obj ~= nil)
+		local guis = {}
+		local root = player.gui.left.add{type = "frame", name = "traingui-root", direction = "vertical"}
+		root.tooltip = "Train #" .. train
+		--root.title_top_padding = 0
+		--root.title_bottom_padding = 0
+		local header2 = root.add{type = "label", name = "traingui-filter-title", caption = "  Station Filters"}
+		header2.style.height = 20
+		local header = root.add{type = "flow", name = "traingui-header"}
+		header.style.height = 36
+		local spacer = header.add{type = "sprite", name = "traingui-header-spacer", "utility/empty"}
+		spacer.style.width = 6
+		local stations = obj.schedule.records
+		for i = 1,#stations do
+			local station = stations[i].station
+			--local box = header.add{type = "sprite", name = "traingui-header-" .. i, sprite = i == 7 and "utility/clear" or ("virtual-signal/signal-" .. i)}
+			local box = header.add{type = "frame", name = "traingui-header-" .. i, caption = i, tooltip = station}
+			box.style.width = 35
+		end
+		for _,car in pairs(entry.cars) do
+			local gui = nil
+			local id = "traingui-" .. car.type .. "-" .. car.index
+			--game.print("Adding " .. id)
+			if car.type == "cargo-wagon" then
+				gui = root.add{type = "frame", name = id, direction = "horizontal"}
+				--gui.style.height = 24 --24 for flow, 30 for frame
+				for i = 1,#stations do
+					local data = getTrainCarItemFilterData(depot, obj, car.index, i)
+					--game.print("Creating GUI for car " .. car.index .. ", data = " .. (data and data or "nil"))
+					gui.add{type = "choose-elem-button", name = id .. "-button-" .. i, elem_type = "item", item = data}
+				end
+			else
+				gui = root.add{type = "frame", name = id, caption = "[" .. string.gsub(car.type, "-", " ") .. "]"}
+				gui.style.height = 34
+			end
+			if gui then
+				gui.style.top_padding = 0
+				gui.style.bottom_padding = 0
+				gui.tooltip = car.type == "locomotive" and "'" .. car.name .. "'" or "Car #" .. car.index
+				table.insert(guis, gui)
+			end
+		end
+		
+		if not entry.guis then entry.guis = {} end
+		entry.guis[player.name] = guis
+	end
+end
+
 function setTrainGui(depot, player, entity)
 	local entry = entity and getOrCreateTrainEntry(depot, entity) or nil
 	for _,elem in pairs(player.gui.left.children) do
-		if elem.name == "traingui-root" then
+		if elem.name == "traingui-container" or elem.name == "traingui-root" then
 			--game.print("Removing " .. elem.name)
 			elem.destroy()
 			break
@@ -175,7 +280,10 @@ function setTrainGui(depot, player, entity)
 		end
 		assert(obj ~= nil)
 		local guis = {}
-		local root = player.gui.left.add{type = "frame", name = "traingui-root", direction = "vertical"}
+		local container = player.gui.left.add{type = "flow", name = "traingui-container", direction = "horizontal"}
+		local root = container.add{type = "frame", name = "traingui-root", direction = "vertical"}
+		local buttons = container.add{type = "frame", name = "traingui-buttons", direction = "vertical"}
+		buttons.style.align = "center"
 		root.tooltip = "Train #" .. train
 		--root.title_top_padding = 0
 		--root.title_bottom_padding = 0
@@ -211,8 +319,9 @@ function setTrainGui(depot, player, entity)
 				gui.style.height = 30 --24 for flow, 30 for frame
 				local data = getTrainCarIOData(depot, obj, car.index)
 				--game.print("Creating GUI for car " .. car.index .. ", data = " .. (data and data or "nil"))
-				gui.add{type = "checkbox", name = id .. "-button-1", caption = "I/O Control  ", state = data.autoControl} --the "  " is deliberate
-				gui.add{type = "checkbox", name = id .. "-button-2", caption = "Fills At Depot", state = data.shouldFill}
+				gui.add{type = "checkbox", name = id .. "-button-1", caption = "I/O Control", state = data.autoControl and data.autoControl or false, tooltip = {"depot-gui-tooltip.auto-control"}}
+				gui.add{type = "checkbox", name = id .. "-button-2", caption = "Fills At Depot", state = data.shouldFill and data.shouldFill or false, tooltip = {"depot-gui-tooltip.should-fill"}}
+				gui.add{type = "checkbox", name = id .. "-button-3", caption = "Can Be Emptied", state = data.allowExtraction and data.allowExtraction or false, tooltip = {"depot-gui-tooltip.allow-empty"}}
 			else
 				gui = root.add{type = "frame", name = id, caption = "[" .. string.gsub(car.type, "-", " ") .. "]"}
 				gui.style.height = 34
@@ -224,6 +333,12 @@ function setTrainGui(depot, player, entity)
 				table.insert(guis, gui)
 			end
 		end
+		
+		if obj.schedule and player.force.technologies["depot-cargo-filters"].researched then
+			local button = buttons.add{type = "button", name = "traingui-filters", caption = "Filters", mouse_button_filter = {"left"}}
+			button.style.align = "center"
+		end
+		
 		if not entry.guis then entry.guis = {} end
 		entry.guis[player.name] = guis
 	end
@@ -234,23 +349,44 @@ local function getTrainForGui(player, text)
 end
 
 local function saveGuiData(depot, player)
-	for _,elem in pairs(player.gui.left.children) do
-		if elem.name == "traingui-root" then
-			local train = getTrainForGui(player, elem.tooltip)
+	for _,elem0 in pairs(player.gui.left.children) do
+		if elem0.name == "traingui-container" then
+			for _,elem in pairs(elem0.children) do
+				if elem.name == "traingui-root" then
+					local train = getTrainForGui(player, elem.tooltip)
+					--game.print(train and train.id or "nil")
+					local entry = train and getOrCreateTrainEntryByTrain(depot, train) or nil
+					--game.print("Has entry? " .. (entry and "yes" or "no"))
+					if entry then
+						for i,child in pairs(elem.children) do
+							if child.name == "traingui-title" then
+								entry.displayName = child.text
+							elseif i > 1 and child.children and #child.children > 0 then
+								local idx = tonumber(string.sub(child.tooltip, string.len("Car #")+1))
+								--game.print("Car " .. i .. " from " .. idx .. " of " .. child.tooltip .. " which has child #1 " .. child.children[1].name)
+								if string.find(child.name, "fluid") then
+									setTrainCarFilterData(depot, train, idx, child.children)
+								elseif string.find(child.name, "cargo") then
+									setTrainCarIOData(depot, train, idx, child.children[1].state, child.children[2].state, child.children[3].state)
+								end
+							end
+						end
+					end
+					break
+				end
+			end
+		elseif elem0.name == "traingui-root" then
+			local train = getTrainForGui(player, elem0.tooltip)
 			--game.print(train and train.id or "nil")
 			local entry = train and getOrCreateTrainEntryByTrain(depot, train) or nil
 			--game.print("Has entry? " .. (entry and "yes" or "no"))
 			if entry then
-				for i,child in pairs(elem.children) do
-					if child.name == "traingui-title" then
-						entry.displayName = child.text
-					elseif i > 1 and child.children and #child.children > 0 then
+				for i,child in pairs(elem0.children) do
+					if i > 1 and child.children and #child.children > 0 then
 						local idx = tonumber(string.sub(child.tooltip, string.len("Car #")+1))
 						--game.print("Car " .. i .. " from " .. idx .. " of " .. child.tooltip .. " which has child #1 " .. child.children[1].name)
-						if string.find(child.name, "fluid") then
-							setTrainCarFilterData(depot, train, idx, child.children)
-						elseif string.find(child.name, "cargo") then
-							setTrainCarIOData(depot, train, idx, child.children[1].state, child.children[2].state)
+						if string.find(child.name, "cargo") then
+							setTrainCarItemFilterData(depot, train, idx, child.children)
 						end
 					end
 				end
@@ -272,5 +408,29 @@ function handleTrainGUI(event, open)
 	else
 		saveGuiData(global.depot, player)
 		setTrainGui(global.depot, player, nil)
+	end
+end
+
+function handleTrainGUIClick(event)
+	if string.find(event.element.name, "traingui") and event.element.type == "button" then
+		local player = game.players[event.player_index]
+		local entry = nil
+		for _,elem0 in pairs(player.gui.left.children) do
+			if elem0.name == "traingui-container" then
+				for _,elem in pairs(elem0.children) do
+					if elem.name == "traingui-root" then
+						local train = getTrainForGui(player, elem.tooltip)
+						if train then
+							entry = getOrCreateTrainEntryByTrain(global.depot, train)
+							break
+						end
+					end
+				end
+			end
+		end
+		if string.find(event.element.name, "filters") then
+			handleTrainGUI(event, false)
+			createFilterGui(global.depot, player, entry)
+		end
 	end
 end

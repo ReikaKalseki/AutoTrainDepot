@@ -16,8 +16,16 @@ if data.raw.container["angels-warehouse"] then
 	if data.raw.tool["logistic-science-pack"] then
 		table.insert(tech2.unit.ingredients, {"logistic-science-pack", 1})
 	end
-	tech2.prerequisites = {tech.name, "angels-logistic-warehouses", "advanced-electronics-2"}
+	tech2.prerequisites = {tech.name, "angels-logistic-warehouses", "advanced-electronics"}
 	tech2.effects = {}
+	
+	if data.raw.item["titanium-plate"] and mods["FTweaks"] then
+		table.insert(tech.prerequisites, "cobalt-processing-2")
+		table.insert(tech2.prerequisites, "cobalt-processing-2")
+	elseif data.raw.technology["concrete-2"] then
+		table.insert(tech.prerequisites, "concrete-2")
+		table.insert(tech2.prerequisites, "concrete-2")
+	end
 	
 	tech.localised_name = {"bigger-warehouse.name", {"technology-name.angels-warehouses"}}
 	tech2.localised_name = {"bigger-warehouse.name", {"technology-name.angels-logistic-warehouses"}}
@@ -73,12 +81,22 @@ if data.raw.container["angels-warehouse"] then
 		item.localised_name = bigger.localised_name
 		recipe.name = item.name
 		recipe.result = item.name
-		recipe.ingredients = {
-			{name, 1},
-			{"processing-unit", 20},
-			{"refined-concrete", 200},
-			{"steel-chest", 10},
-		}
+		if data.raw.item["titanium-plate"] and mods["FTweaks"] then --titanium is too expensive
+			recipe.ingredients = {
+				{name, 1},
+				{"advanced-circuit", 20},
+				{"concrete", 200},
+				{"steel-chest", 10},
+				{"cobalt-steel-alloy", 40},
+			}
+		else
+			recipe.ingredients = {
+				{name, 1},
+				{"advanced-circuit", 20},
+				{"refined-concrete", 200},
+				{"steel-chest", 10},
+			}
+		end
 		
 		log("Adding larger version of AngelWarehouse type '" .. (type == "" and "basic" or type) .. "'")
 		

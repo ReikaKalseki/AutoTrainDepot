@@ -8,17 +8,23 @@ end
 local function isTrainUnfueled(train)
 	if train.speed ~= 0 or train.manual_mode or not train.locomotives then return false end
 	if train.locomotives["front_movers"] then
-	for _,loco in pairs(train.locomotives["front_movers"]) do
-		if locomotiveHasNoFuel(loco) then return true end
-	end
+		for _,loco in pairs(train.locomotives["front_movers"]) do
+			if locomotiveHasNoFuel(loco) then return true end
+		end
 	end
 	if train.locomotives["back_movers"] then
-	for _,loco in pairs(train.locomotives["back_movers"]) do
-		if locomotiveHasNoFuel(loco) then return true end
-	end
+		for _,loco in pairs(train.locomotives["back_movers"]) do
+			if locomotiveHasNoFuel(loco) then return true end
+		end
 	end
 	return false
 end
+
+local functionIDs = {
+	["nofuel"] = isTrainUnfueled,
+	["nopath"] = function(train) return train.state == defines.train_state.no_path end,
+	["deadlock"] = function(train) return train.state == defines.train_state.wait_signal end,
+}
 
 local function playAlert(depot, force, alert, tag, train, from, to, sound)
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
@@ -45,7 +51,7 @@ local function raiseTrainAlert(depot, force, train, alert, sound)
 	local to = train.schedule.records[train.schedule.current].station
 	local from = (train.schedule.current == 1 and train.schedule.records[#train.schedule.records] or train.schedule.records[train.schedule.current-1]).station
 	--game.print("Train #" .. train.id .. " is " .. alert .. " during route from " .. from.station .. " to " .. to.station)
-	local func = getFunction(alert)
+	local func = alert
 	local tag = "train-alert." .. alert
 	local alert = "train-alert-" .. alert
 	playAlert(depot, force, alert, tag, train, from, to, sound)
@@ -59,11 +65,12 @@ function tickTrainAlerts(depot, sound, force)
 	for id,alert in pairs(depot.trainAlerts[force.name]) do
 		local train = getTrainByID(game.surfaces["nauvis"], alert.force, alert.train)
 		--game.print(id .. " > " .. type(alert.validate))
-		if train and alert.validate and type(alert.validate) == "function" and alert.validate(train) then
+		if train and alert.validate and type(alert.validate) == "string" and functionIDs[alert.validate](train) then
 			playAlert(depot, alert.force, alert.alert, alert.tag, train, alert.from, alert.to, sound)
 			sound = false
 		else
 			depot.trainAlerts[force.name][id] = nil
+			depot.trainPosCache[alert.train] = nil
 		end
 	end
 end
@@ -94,6 +101,8 @@ function checkTrainAlerts(depot, tick, force)
 			if not depot.trainPosCache[train.id] or depot.trainPosCache[train.id].x ~= pos.x or depot.trainPosCache[train.id].y ~= pos.y then
 				depot.trainPosCache[train.id] = {x = pos.x, y = pos.y, since = tick}
 			end
+		else
+			depot.trainPosCache[train.id] = nil
 		end
 	end
 	return fired

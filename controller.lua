@@ -96,8 +96,10 @@ local function getInputBelts(depot)
 			end
 		end
 		
+		--local added = false
+		
 		for _,feed in pairs(feeds) do -- can be belt OR inserter, nothing else
-			if (not depot.inputCount or depot.inputCount < depot.typeLimit) and not depot.inputs[feed.unit_number] then --prevent duplicate or too many entries
+			if --[[(not depot.inputCount or depot.inputCount < depot.typeLimit) and --]]not depot.inputs[feed.unit_number] then --prevent duplicate or too many entries->[9mo later]...wait..."too many"???
 				local item = nil
 				if feed.type == "transport-belt" then
 					local line = feed.get_transport_line(1)
@@ -137,10 +139,12 @@ local function getInputBelts(depot)
 					control.circuit_condition = {condition={comparator="<", first_signal={type="item", name=item}, constant=thresh}}
 					
 					depot.inputs[feed.unit_number] = {item = item, entity = feed, limit = thresh, storage = storage}
+					--added = true
 					
 					--game.print("Connected " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " for item " .. item)
 				end
 			end
+			--if (not added) and depot.inputs[feed.unit_number] == nil then game.print("Did not add entity " .. serpent.block(feed.position)) feed.surface.create_entity{name="inserter", position=feed.position} end
 		end
 		
 		for _,pull in pairs(pulls) do -- can be belt OR inserter, nothing else
@@ -346,7 +350,7 @@ local function isFull(storage)
 	return not storage.get_inventory(defines.inventory.chest).can_insert({name="blueprint", count=1})
 end
 
-local function verifyInputsAndStorages(depot)
+local function verifyInputsAndStorages(glbl, depot)
 	if depot.storages then
 		for unit,storage in pairs(depot.storages) do
 			if not storage or not storage.valid then
@@ -375,12 +379,17 @@ local function verifyInputsAndStorages(depot)
 			elseif input.entity.type == "inserter" and (depot.wasFull or isPowerAvailable(depot.controller.force, "dynamic-filters")) then -- input.entity.name == "dynamic-train-unloader"
 				local src = input.entity.pickup_target
 				if src and src.type == "cargo-wagon" then
-					local inv = src.get_inventory(defines.inventory.cargo_wagon)
-					if inv then
-						local items = inv.get_contents()
-						for item,num in pairs(items) do
-							setInputItem(depot, input, item)
-							break
+					local data = getTrainCarIOData(glbl, src.train, getIndexedCarByWagon(glbl, src).index)
+					if data and data.autoControl and data.shouldFill and (not data.allowExtraction) then
+						setInputItem(depot, input, nil)
+					else
+						local inv = src.get_inventory(defines.inventory.cargo_wagon)
+						if inv then
+							local items = inv.get_contents()
+							for item,num in pairs(items) do
+								setInputItem(depot, input, item)
+								break
+							end
 						end
 					end
 				end
@@ -388,14 +397,19 @@ local function verifyInputsAndStorages(depot)
 				local loader = getLoaderSource(input.entity, true)
 				local src = loader and getLoaderFeed(loader, "cargo-wagon", 2) or nil
 				if src then
-					--game.print(serpent.block(src.get_inventory(defines.inventory.cargo_wagon).get_contents()))
-					local inv = src.get_inventory(defines.inventory.cargo_wagon)
-					if inv then
-						local items = inv.get_contents()
-						for item,num in pairs(items) do
-							--game.print("Setting " .. item)
-							setInputItem(depot, input, item)
-							break
+					local data = getTrainCarIOData(glbl, src.train, getIndexedCarByWagon(glbl, src).index)
+					if data and data.autoControl and data.shouldFill and (not data.allowExtraction) then
+						setInputItem(depot, input, nil)
+					else
+						--game.print(serpent.block(src.get_inventory(defines.inventory.cargo_wagon).get_contents()))
+						local inv = src.get_inventory(defines.inventory.cargo_wagon)
+						if inv then
+							local items = inv.get_contents()
+							for item,num in pairs(items) do
+								--game.print("Setting " .. item)
+								setInputItem(depot, input, item)
+								break
+							end
 						end
 					end
 				end
@@ -514,7 +528,7 @@ local function setTrainFilters(depot, entry)
 				else
 					
 				end
-			else --clear all filters if parked at a different station
+			elseif not (train.station and depot.depotStations and depot.depotStations[train.station.unit_number]) then --clear all filters if parked at a different non-depot station
 				local entry2 = getOrCreateTrainEntryByTrain(depot, train)
 				if entry2 then
 					for idx,car in pairs(entry2.cars) do
@@ -538,7 +552,7 @@ end
 local function clearOutputInserters(entry)
 	if not entry.pulls then return end
 	for unit,pull in pairs(entry.pulls) do
-		if pull.entity.valid then
+		if pull.entity.valid and pull.storage.valid then
 			if pull.entity.held_stack and pull.entity.held_stack.valid_for_read then
 				local empty = pull.entity.drop_position
 				local area = {{empty.x-1, empty.y-1}, {empty.x+1, empty.y+1}}
@@ -566,8 +580,15 @@ end
 
 function tickDepot(depot, entry, tick)	
 	verifyControlSignal(entry)
-	verifyInputsAndStorages(entry)
+	verifyInputsAndStorages(depot, entry)
 	checkConnections(entry)
+	
+	if entry.stations and #entry.stations > 0 then
+		if not depot.depotStations then depot.depotStations = {} end
+		for _,station in pairs(entry.stations) do
+			depot.depotStations[station.entity.unit_number] = entry.controller.unit_number
+		end
+	end
 	
 	--game.print(input and input.train.id or "nil")
 	setTrainFilters(depot, entry)
@@ -584,6 +605,4 @@ function tickDepot(depot, entry, tick)
 	else
 		entry.typeLimit = 0
 	end
-	
-	
 end

@@ -13,4 +13,11 @@ data:extend({
             default_value = true,
             order = "r",
         },
+        {
+            type = "bool-setting",
+            name = "block-stations",
+            setting_type = "startup",
+            default_value = true,
+            order = "r",
+        },
 })

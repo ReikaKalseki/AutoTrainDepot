@@ -22,10 +22,21 @@ end
 
 script.on_configuration_changed(function()
 	initGlobal(true)
+	local depot = global.depot
 	
-	for _,entry in pairs(global.depot.entries) do
+	for _,entry in pairs(depot.entries) do
 		if entry.type == nil then
 			entry.type = "item"
+		end
+	end
+	
+	if depot.trainAlerts then
+		for force,li in pairs(depot.trainAlerts) do
+			for id,alert in pairs(li) do
+				if alert.validate == nil or type(alert.validate) == "function" then
+					li[id] = nil
+				end
+			end
 		end
 	end
 end)
@@ -47,13 +58,42 @@ script.on_event(defines.events.on_tick, function(event)
 		end
 	end
 	for _,force in pairs(game.forces) do
-		if force.technologies["train-alarms"].researched then
+		if event.tick%300 == 0 and force.technologies["train-alarms"].researched then
 			local fired = false
 			if event.tick%600 == 0 then --10s
 				fired = checkTrainAlerts(depot, event.tick, force)
 			end
 			if depot.trainAlerts and event.tick%300 == 0 then
 				tickTrainAlerts(depot, (not fired), force)
+			end
+		end
+		
+		if event.tick%150 == 0 and force.technologies["depot-cargo-filters"].researched then --every 2.5s
+			for _,train in pairs(force.get_trains(game.surfaces[1])) do
+				if train.schedule and #train.schedule.records > 0 then
+					local entry = getOrCreateTrainEntryByTrain(depot, train)
+					if entry then
+						local filters = getTrainItemFilterData(depot, train)
+						if filters then--and train.station then
+							--local stops = train.schedule.records
+							--local stop =
+							local stationIndex = train.schedule.current
+							for _,car in pairs(entry.cars) do
+								if car.type == "cargo-wagon" and filters[car.index] then
+									local entity = train.carriages[car.position]
+									local filter = filters[car.index][stationIndex]
+									local inv = entity.get_inventory(defines.inventory.cargo_wagon)
+									if inv and filter ~= "skip" then
+										for i = 1,#inv do
+											inv.set_filter(i, filter)
+										end
+										--force.print("Setting filters on train " .. entry.displayName .. " car " .. car.index .. " to " .. (filter and filter or "nil") .. " for station " .. train.schedule.records[stationIndex].station)
+									end
+								end
+							end
+						end
+					end
+				end
 			end
 		end
 	end
@@ -150,4 +190,8 @@ end)
 
 script.on_event(defines.events.on_gui_checked_state_changed, function(event)
 	handleTrainGUIState(event)
+end)
+
+script.on_event(defines.events.on_gui_click, function(event)
+	handleTrainGUIClick(event)
 end)
