@@ -79,7 +79,7 @@ script.on_event(defines.events.on_tick, function(event)
 							--local stop =
 							local stationIndex = train.schedule.current
 							for _,car in pairs(entry.cars) do
-								if car.type == "cargo-wagon" and filters[car.index] then
+								if car.type == "cargo-wagon" and stationIndex and filters[car.index] then
 									local entity = train.carriages[car.position]
 									local filter = filters[car.index][stationIndex]
 									local inv = entity.get_inventory(defines.inventory.cargo_wagon)
@@ -160,6 +160,19 @@ local function onEntityAdded(entity)
 	end
 end
 
+local function onEntityCopyPaste(event)
+	local e1 = event.source
+	local e2 = event.destination
+	local player = game.players[event.player_index]
+	if e1.type == e2.type and e1.type == "locomotive" then
+		copyTrainSettings(e1, e2)
+	end
+end
+
+local function handleTrainStateChange(train)
+
+end
+
 script.on_event(defines.events.on_entity_died, function(event)
 	onEntityRemoved(event.entity)	
 end)
@@ -194,4 +207,16 @@ end)
 
 script.on_event(defines.events.on_gui_click, function(event)
 	handleTrainGUIClick(event)
+end)
+
+script.on_event(defines.events.on_train_changed_state, function(event)
+	handleTrainStateChange(event.train)
+end)
+
+script.on_event(defines.events.on_train_created, function(event)
+	handleTrainModification(event.train, event.old_train_id_1, event.old_train_id_2)
+end)
+
+script.on_event(defines.events.on_entity_settings_pasted, function(event)
+	onEntityCopyPaste(event)
 end)

@@ -59,6 +59,14 @@ local function isValid(entry)
 	return entry and entry.version and entry.version >= ENTRY_VERSION and entry.train and entry.cars and entry.length and entry.name and #entry.cars > 0 and entry.cars[1].type and entry.cars[1].index and entry.cars[1].name
 end
 
+function getCachedEntryByID(depot, id)
+	if not depot then error(debug.traceback()) end
+	if not depot.trains then depot.trains = {} end
+	local get = depot.trains[id]
+	if not isValid(get) then get = nil end
+	return get
+end	
+
 function getOrCreateTrainEntryByTrain(depot, train)
 	if not depot then error(debug.traceback()) end
 	if not depot.trains then depot.trains = {} end
@@ -118,8 +126,8 @@ end
 
 function getTrainCarFilterData(depot, train, car)
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
-	local idx = entry.indices["fluid-wagon"][car]
-	if entry.cars[idx] == nil or entry.cars[idx].type ~= "fluid-wagon" then return nil end
+	local idx = entry.indices["fluid-wagon"] and entry.indices["fluid-wagon"][car] or nil
+	if idx == nil or entry.cars[idx] == nil or entry.cars[idx].type ~= "fluid-wagon" then return nil end
 	local filters = getTrainFilterData(depot, train)
 	--game.print("loaded stored filter " .. (filters[car] and filters[car] or "nil") .. " for car " .. car)
 	if not filters[car] or type(filters[car]) ~= "number" then filters[car] = 7 end
@@ -143,7 +151,12 @@ function getTrainCarItemFilterData(depot, train, car, station)
 	local filters = getTrainItemFilterData(depot, train)
 	--game.print("loaded stored item filter " .. (filters[car] and filters[car] or "nil") .. " for car " .. car)
 	if not filters[car] or type(filters[car]) ~= "table" then filters[car] = {} end
-	return filters[car][station]
+	return station == -1 and filters[car] or filters[car][station]
+end
+
+local function setTrainCarFilterDataDirect(depot, train, car, data)
+	local filters = getTrainFilterData(depot, train)
+	filters[car] = data
 end
 
 local function setTrainCarFilterData(depot, train, car, options)
@@ -163,6 +176,11 @@ local function setTrainCarIOData(depot, train, car, auto, fill, extr)
 	--game.print("Setting filter for car " .. car .. " to " .. slot)
 	local filters = getTrainIOData(depot, train)
 	filters[car] = {autoControl = auto, shouldFill = fill, allowExtraction = extr}
+end
+
+local function setTrainCarItemFilterDataDirect(depot, train, car, data)
+	local filters = getTrainItemFilterData(depot, train)
+	filters[car] = data
 end
 
 local function setTrainCarItemFilterData(depot, train, car, guis)
@@ -431,6 +449,64 @@ function handleTrainGUIClick(event)
 		if string.find(event.element.name, "filters") then
 			handleTrainGUI(event, false)
 			createFilterGui(global.depot, player, entry)
+		end
+	end
+end
+
+local function copySettings(depot, from, to)
+	for i = 1,math.min(#from.carriages, #to.carriages) do
+		local filters = getTrainCarFilterData(depot, from, i)
+		local io = getTrainCarIOData(depot, from, i)
+		local items = getTrainCarItemFilterData(depot, from, i, -1)
+		
+		--game.print(i .. " , " .. serpent.block(filters))
+		--game.print(i .. " , " .. serpent.block(io))
+		--game.print(i .. " , " .. serpent.block(items))
+		
+		if filters then setTrainCarFilterDataDirect(depot, to, i, filters) end
+		if io then setTrainCarIOData(depot, to, i, io.autoControl, io.shouldFill, io.allowExtraction) end --this one does not need direct
+		if items then setTrainCarItemFilterDataDirect(depot, to, i, items) end
+	end
+end
+
+function copyTrainSettings(e1, e2)
+	local train1 = e1.train
+	local train2 = e2.train
+	if train1.id ~= train2.id then
+		local depot = global.depot
+		copySettings(depot, train1, train2)
+	end
+end
+
+function handleTrainModification(new, old1, old2)
+	local depot = global.depot
+	local e1 = getCachedEntryByID(depot, old1)
+	local e2 = getCachedEntryByID(depot, old2)
+	local repl = getOrCreateTrainEntryByTrain(depot, new)
+	local data = {} --cache on an entity by entity basis; entities that remain will have their settings preserved
+	if e1 then
+		for _,car in pairs(e1.cars) do
+			data[car.unit] = {filters = e1.filters and e1.filters[car.index] or nil, io = e1.io and e1.io[car.index] or nil, items = e1.item_filters and e1.item_filters[car.index] or nil}
+		end
+	end
+	if e2 then
+		for _,car in pairs(e2.cars) do
+			data[car.unit] = {filters = e2.filters and e2.filters[car.index] or nil, io = e2.io and e2.io[car.index] or nil, items = e2.item_filters and e2.item_filters[car.index] or nil}
+		end
+	end
+	--game.print(serpent.block(data))
+	for _,car in pairs(repl.cars) do
+		local unit = car.unit
+		local entry = data[unit]
+		if not repl.filters then repl.filters = {} end
+		if not repl.io then repl.io = {} end
+		if not repl.item_filters then repl.item_filters = {} end
+		if entry then
+			--game.print(serpent.block(entry))
+			if entry.filters then repl.filters[car.index] = entry.filters end
+			if entry.io then repl.io[car.index] = entry.io end
+			if entry.items then repl.item_filters[car.index] = entry.items end
+			--game.print(serpent.block(repl.io))
 		end
 	end
 end
