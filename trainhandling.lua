@@ -68,7 +68,7 @@ function getCachedEntryByID(depot, id)
 end	
 
 function getOrCreateTrainEntryByTrain(depot, train)
-	if not depot then error(debug.traceback()) end
+	if not depot then error("NO GLOBAL DATA SUPPLIED!" .. debug.traceback()) end
 	if not depot.trains then depot.trains = {} end
 	local get = depot.trains[train.id]
 	if not isValid(get) then get = nil end
@@ -187,7 +187,7 @@ local function setTrainCarItemFilterData(depot, train, car, guis)
 	local data = {}
 	for i,elem in pairs(guis) do
 		--game.print(elem.name .. " type " .. elem.type .. " : " .. i .. " > " .. (elem.elem_value and elem.elem_value or "nil") .. " type " .. elem.elem_type)
-		data[i] = elem.elem_value
+		data[i] = elem.elem_value and elem.elem_value or "nil"
 	end
 	local filters = getTrainItemFilterData(depot, train)
 	filters[car] = data
@@ -251,6 +251,18 @@ local function createFilterGui(depot, player, entry)
 				for i = 1,#stations do
 					local data = getTrainCarItemFilterData(depot, obj, car.index, i)
 					--game.print("Creating GUI for car " .. car.index .. ", data = " .. (data and data or "nil"))
+					if not data then
+						local wagon = obj.carriages[car.position]
+						local inv = wagon.get_inventory(defines.inventory.cargo_wagon)
+						local filter = inv.get_filter(i)
+						data = filter
+					end
+					if not data then
+						data = "skip-filter-swap"
+					end
+					if data == "nil" then
+						data = nil
+					end
 					gui.add{type = "choose-elem-button", name = id .. "-button-" .. i, elem_type = "item", item = data}
 				end
 			else

@@ -67,35 +67,6 @@ script.on_event(defines.events.on_tick, function(event)
 				tickTrainAlerts(depot, (not fired), force)
 			end
 		end
-		
-		if event.tick%150 == 0 and force.technologies["depot-cargo-filters"].researched then --every 2.5s
-			for _,train in pairs(force.get_trains(game.surfaces[1])) do
-				if train.schedule and #train.schedule.records > 0 then
-					local entry = getOrCreateTrainEntryByTrain(depot, train)
-					if entry then
-						local filters = getTrainItemFilterData(depot, train)
-						if filters then--and train.station then
-							--local stops = train.schedule.records
-							--local stop =
-							local stationIndex = train.schedule.current
-							for _,car in pairs(entry.cars) do
-								if car.type == "cargo-wagon" and stationIndex and filters[car.index] then
-									local entity = train.carriages[car.position]
-									local filter = filters[car.index][stationIndex]
-									local inv = entity.get_inventory(defines.inventory.cargo_wagon)
-									if inv and filter ~= "skip" then
-										for i = 1,#inv do
-											inv.set_filter(i, filter)
-										end
-										--force.print("Setting filters on train " .. entry.displayName .. " car " .. car.index .. " to " .. (filter and filter or "nil") .. " for station " .. train.schedule.records[stationIndex].station)
-									end
-								end
-							end
-						end
-					end
-				end
-			end
-		end
 	end
 end)
 
@@ -170,7 +141,29 @@ local function onEntityCopyPaste(event)
 end
 
 local function handleTrainStateChange(train)
-
+	if #train.carriages == 0 then return end
+	local depot = global.depot
+	local force = train.carriages[1].force
+	local entry = getOrCreateTrainEntryByTrain(depot, train)
+	if (train.state == defines.train_state.arrive_station or train.state == defines.train_state.wait_station) and force.technologies["depot-cargo-filters"].researched then
+		local filters = getTrainItemFilterData(depot, train)
+		if filters then
+			local stationIndex = train.schedule.current
+			for _,car in pairs(entry.cars) do
+				if car.type == "cargo-wagon" and stationIndex and filters[car.index] then
+					local entity = train.carriages[car.position]
+					local filter = filters[car.index][stationIndex]
+					local inv = entity.get_inventory(defines.inventory.cargo_wagon)
+					if inv and filter ~= "skip-filter-swap" then
+						for i = 1,#inv do
+							inv.set_filter(i, filter == "nil" and nil or filter)
+						end
+						--force.print("Setting filters on train " .. entry.displayName .. " car " .. car.index .. " to " .. (filter and filter or "nil") .. " for station " .. train.schedule.records[stationIndex].station)
+					end
+				end
+			end
+		end
+	end
 end
 
 script.on_event(defines.events.on_entity_died, function(event)
