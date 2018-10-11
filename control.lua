@@ -90,6 +90,13 @@ local function invalidate(entry)
 			end
 		end
 	end
+	if entry.pulls then
+		for unit,pull in pairs(entry.pulls) do
+			if pull.entity.valid and pull.entity.name == "train-unloader" then
+				pull.entity.active = false
+			end
+		end
+	end
 end
 
 local function onEntityRemoved(entity)
@@ -128,6 +135,7 @@ local function onEntityAdded(entity)
 		table.insert(depot.entries, entry)
 	elseif entity.name == "train-unloader" then
 		entity.active = false
+		entity.operable = false
 	end
 end
 
@@ -156,7 +164,11 @@ local function handleTrainStateChange(train)
 					local inv = entity.get_inventory(defines.inventory.cargo_wagon)
 					if inv and filter ~= "skip-filter-swap" then
 						for i = 1,#inv do
-							inv.set_filter(i, filter == "nil" and nil or filter)
+							if filter == nil or filter == "nil" then
+								inv.set_filter(i, nil)
+							else
+								inv.set_filter(i, filter)
+							end
 						end
 						--force.print("Setting filters on train " .. entry.displayName .. " car " .. car.index .. " to " .. (filter and filter or "nil") .. " for station " .. train.schedule.records[stationIndex].station)
 					end

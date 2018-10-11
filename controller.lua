@@ -3,7 +3,7 @@ require "constants"
 require "trainhandling"
 require "belthandling"
 
-local balanceRate = 600 --10s
+local balanceRate = 240--600 --10s -> 4s since now only runs if there is a train stopped there
 
 local function isPowerAvailable(force, power)
 	--game.print("Checking power " .. power .. ": " .. (force.technologies["depot-" .. power].researched and "has" or "no"))
@@ -448,14 +448,13 @@ local function balanceStorages(depot)
 	end
 	for type,amt in pairs(totals) do
 		if amt > 0 and amounts[type] > 0 then --add leftovers
-			for _,storage in pairs(depot.storages) do
-				local inv = storage.get_inventory(defines.inventory.chest)
-				local added = inv.insert({name = type, count = amt})
-				totals[type] = totals[type]-added
-				amounts[type] = totals[type]
-				counts[type] = totals[type]
-				if amounts[type] <= 0 then break end
-			end
+			local storage = depot.storages[depot.primaryStorage]
+			local inv = storage.get_inventory(defines.inventory.chest)
+			local added = inv.insert({name = type, count = amt})
+			totals[type] = totals[type]-added
+			amounts[type] = totals[type]
+			counts[type] = totals[type]
+			--if amounts[type] <= 0 then break end
 		end
 	end
 	for type,amt in pairs(counts) do --leftover
@@ -590,14 +589,40 @@ function tickDepot(depot, entry, tick)
 		end
 	end
 	
+	--game.print(serpent.block(entry.pulls))
+	
+	if entry.primaryStorage == nil and entry.storageCount and entry.storageCount > 0 then
+		local dist = 999999
+		for unit,storage in pairs(entry.storages) do
+			local dd = storage.position.x-entry.controller.position.x+storage.position.y-entry.controller.position.y
+			if dd < dist then
+				entry.primaryStorage = unit
+				dist = dd
+			end
+		end
+	end
+	
 	--game.print(input and input.train.id or "nil")
 	setTrainFilters(depot, entry)
 	clearOutputInserters(entry)
 	
 	if entry.storageCount and entry.storageCount > 0 then
 		getInputBelts(entry)
+		local hasFillTrains = false
+		for _,station in pairs(entry.stations) do
+			if station.input then
+				for _,train in pairs(station.entity.get_train_stop_trains()) do
+					--game.print(train.id .. " > " .. (train.station and "parked" or "not") .. " @ " .. (station.input and "input" or "output"))
+					if train.station == station.entity then
+						hasFillTrains = true
+						break
+					end
+				end
+				break
+			end
+		end
 		--game.print("Comparing " .. tick .. " = " .. tick%balanceRate .. " vs " .. (entry.controller.unit_number-entry.controller.unit_number%tickRate) .. " to " .. (entry.controller.unit_number-entry.controller.unit_number%tickRate)%balanceRate)
-		if (not entry.isFull) and tick%balanceRate == (entry.controller.unit_number-entry.controller.unit_number%tickRate)%balanceRate and isPowerAvailable(entry.controller.force, "balancing") then
+		if hasFillTrains and (not entry.isFull) and tick%balanceRate == (entry.controller.unit_number-entry.controller.unit_number%tickRate)%balanceRate and isPowerAvailable(entry.controller.force, "balancing") then
 			--manageLoopFeeds(entry)
 			balanceStorages(entry)
 		end

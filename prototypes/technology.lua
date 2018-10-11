@@ -185,31 +185,28 @@ data:extend({
 	},
 })
 
-if Config.unloader then
+if Config.reloader then
 data:extend({
 	{
 		type = "technology",
-		name = "unloader",
+		name = "rapid-loading",
 		prerequisites =
 		{
-			"depot",
-			"inserter-capacity-bonus-3",
+			"logistics-3",
+			"depot-item-count-3",
+			"inserter-capacity-bonus-4",
 		},
-		icon = "__AutoTrainDepot__/graphics/technology/unloader.png",
+		icon = "__AutoTrainDepot__/graphics/technology/reloader.png",
 		effects =
 		{
 			{
 				type = "unlock-recipe",
-				recipe = "train-unloader"
-			},
-			{
-				type = "unlock-recipe",
-				recipe = "dynamic-train-unloader"
+				recipe = "train-reloader"
 			}
 		},
 		unit =
 		{
-		  count = 250,
+		  count = 150,
 		  ingredients =
 		  {
 			{"science-pack-1", 1},
@@ -222,4 +219,9 @@ data:extend({
 		icon_size = 128,
 	},
 })
+
+	if data.raw.tool["logistic-science-pack"] then
+		table.insert(data.raw.technology["rapid-loading"].unit.ingredients, {"logistic-science-pack", 1})
+		data.raw.technology["rapid-loading"].unit.count = 90
+	end
 end

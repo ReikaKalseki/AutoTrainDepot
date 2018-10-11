@@ -1,4 +1,18 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.160
+Date: Oct 10 2018
+	- Recreated Rapid Train Loader
+	- Trains can now have dynamic item filters for their cargo wagons, selected on a per-station and per-car basis
+	- Added option to make trains not pathfind through occupied stations or immobile trains
+	- Changed large warehouse recipes
+	- Tweaked tech costs
+	- Added locale support to GUI options
+	- Fixed depots only having as many controllable inputs as filtered items
+	- Copying train entity data now also copies custom GUI data
+	- Trains now preserve most of their data when modified (only the replaced cars are cleared)
+	- Improved performance with tick code
+	- Depot balancing now runs more often when there is a train at the loading station, and never when there is not
+---------------------------------------------------------------------------------------------------
 Version: 1.0.148
 Date: Sep 18 2018
 	- Fixed crash without BobMods

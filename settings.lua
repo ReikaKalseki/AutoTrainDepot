@@ -8,9 +8,9 @@ data:extend({
         },
         {
             type = "bool-setting",
-            name = "add-unloader",
+            name = "add-reloader",
             setting_type = "startup",
-            default_value = true,
+            default_value = false,
             order = "r",
         },
         {
