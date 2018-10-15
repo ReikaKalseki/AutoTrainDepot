@@ -2,6 +2,7 @@ require "config"
 require "trainhandling"
 require "controller"
 require "fluidcontroller"
+require "smartstop"
 require "alerts"
 
 tickRate = 60--300--60
@@ -16,6 +17,9 @@ function initGlobal(markDirty)
 	end
 	if depot.trains == nil then
 		depot.trains = {}
+	end
+	if depot.stops == nil then
+		depot.stops = {}
 	end
 	depot.dirty = markDirty
 end
@@ -57,14 +61,33 @@ script.on_event(defines.events.on_tick, function(event)
 			end
 		end
 	end
-	for _,force in pairs(game.forces) do
-		if event.tick%300 == 0 and force.technologies["train-alarms"].researched then
-			local fired = false
-			if event.tick%600 == 0 then --10s
-				fired = checkTrainAlerts(depot, event.tick, force)
+	if event.tick%300 == 0 then
+		for _,force in pairs(game.forces) do
+			if force.technologies["train-alarms"].researched then
+				local fired = false
+				if event.tick%600 == 0 then --10s
+					fired = checkTrainAlerts(depot, event.tick, force)
+				end
+				if depot.trainAlerts and event.tick%300 == 0 then
+					tickTrainAlerts(depot, (not fired), force)
+				end
 			end
-			if depot.trainAlerts and event.tick%300 == 0 then
-				tickTrainAlerts(depot, (not fired), force)
+		end
+	end
+	if event.tick%60 == 0 then
+		for unit,entry in pairs(depot.stops) do
+			if entry.entity.valid then
+				tickSmartTrainStop(depot, entry)
+			else
+				depot.stops[unit] = nil
+			end
+		end
+		
+		if depot.stopReplacement then
+			for pos,entry in pairs(depot.stopReplacement) do
+				if event.tick-entry.age > 5 then
+					depot.stopReplacement[pos] = nil
+				end
 			end
 		end
 	end
@@ -111,6 +134,15 @@ local function onEntityRemoved(entity)
 				break
 			end
 		end
+	elseif entity.name == "smart-train-stop" then
+		local depot = global.depot
+		local entry = depot.stops[entity.unit_number]
+		if entry then
+			entry.output.disconnect_neighbour(defines.wire_type.red)
+			entry.output.disconnect_neighbour(defines.wire_type.green)
+			entry.power.destroy()
+			entry.output.destroy()
+		end
 	elseif entity.type == "pump" and entity.circuit_connected_entities and (#entity.circuit_connected_entities["red"] > 0 or #entity.circuit_connected_entities["green"] > 0) then --remove combinators for pumps that are removed
 		for _, entry in pairs(global.depot.entries) do
 			if entry.pumps then
@@ -120,6 +152,17 @@ local function onEntityRemoved(entity)
 					end
 				end
 			end
+		end
+	elseif entity.name == "train-stop" then
+		local depot = global.depot
+		local key = entity.position.x .. "/" .. entity.position.y
+		local val = {}
+		for _,train in pairs(entity.get_train_stop_trains()) do
+			val[train.id] = true
+		end
+		if #entity.get_train_stop_trains() > 0 then
+			if not depot.stopReplacement then depot.stopReplacement = {} end
+			depot.stopReplacement[key] = {old = entity.backer_name, trains = val, age = game.tick}
 		end
 	end
 end
@@ -136,6 +179,29 @@ local function onEntityAdded(entity)
 	elseif entity.name == "train-unloader" then
 		entity.active = false
 		entity.operable = false
+	elseif entity.name == "smart-train-stop" then
+		local depot = global.depot
+		local conn = entity.surface.create_entity{name = "smart-train-stop-output", position = {entity.position.x-0.05, entity.position.y+0.875}, force = entity.force}
+		local e2 = entity.surface.create_entity{name = "smart-train-stop-power", position = {entity.position.x, entity.position.y}, force = entity.force}
+		entity.connect_neighbour({target_entity = conn, wire = defines.wire_type.red})
+		depot.stops[entity.unit_number] = {entity = entity, power = e2, output = conn}
+		local key = entity.position.x .. "/" .. entity.position.y
+		local old = depot.stopReplacement and depot.stopReplacement[key] or nil
+		if old and game.tick-old.age < 5 then
+			for _,train in pairs(entity.force.get_trains(entity.surface)) do
+				if old.trains[train.id] then
+					local data = train.schedule
+					for _,stop in pairs(data.records) do
+						if stop.station == old.old then
+							stop.station = entity.backer_name
+							table.insert(stop.wait_conditions, {type = "circuit", compare_type = "and", condition = {comparator = "=", first_signal = {type = "virtual", name = "train-ingredients-full"}, constant = 0}})
+							table.insert(stop.wait_conditions, {type = "circuit", compare_type = "and", condition = {comparator = "=", first_signal = {type = "virtual", name = "train-products-empty"}, constant = 0}})
+						end
+					end
+					train.schedule = data
+				end
+			end
+		end
 	end
 end
 

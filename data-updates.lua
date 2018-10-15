@@ -35,4 +35,9 @@ if Config.blockStations then
 	for _,k in pairs(blocks) do
 		data.raw["utility-constants"].default.train_path_finding[k] = 999999999
 	end
+	
+	local penalty = {"train_stop_penalty"}
+	for _,k in pairs(penalty) do
+		data.raw["utility-constants"].default.train_path_finding[k] = 100000
+	end
 end

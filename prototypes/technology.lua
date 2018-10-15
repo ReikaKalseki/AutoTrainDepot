@@ -29,6 +29,7 @@ local function createTech(name, deps, packs, count)
 		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-item-count", tostring(ITEM_COUNT_TIERS[lvl+1])}})
 	elseif name == "depot-base" then
 		table.insert(effects, {type = "unlock-recipe", recipe = "depot-controller"})
+		table.insert(effects, {type = "unlock-recipe", recipe = "smart-train-stop"})
 		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-item-count", tostring(ITEM_COUNT_TIERS[1])}})
 	else
 		table.insert(deps, "depot-base")
