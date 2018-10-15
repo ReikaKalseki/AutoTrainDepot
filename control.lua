@@ -194,8 +194,32 @@ local function onEntityAdded(entity)
 					for _,stop in pairs(data.records) do
 						if stop.station == old.old then
 							stop.station = entity.backer_name
-							table.insert(stop.wait_conditions, {type = "circuit", compare_type = "and", condition = {comparator = "=", first_signal = {type = "virtual", name = "train-ingredients-full"}, constant = 0}})
-							table.insert(stop.wait_conditions, {type = "circuit", compare_type = "and", condition = {comparator = "=", first_signal = {type = "virtual", name = "train-products-empty"}, constant = 0}})
+							local entry = getOrCreateTrainEntryByTrain(depot, train)
+							local isInputTrain = false
+							local isOutputTrain = false
+							for _,car in pairs(entry.cars) do
+								if car.type == "cargo-wagon" then
+									local io = getTrainCarIOData(depot, train, car.index)
+									local isInput = (not io.autoControl) or (io.autoControl and io.shouldFill)
+									local isOutput = (not io.autoControl) or (io.autoControl and ((not io.shouldFill) or io.allowExtraction))
+									isInputTrain = isInputTrain or isInput
+									isOutputTrain = isOutputTrain or isOutput
+								elseif car.type == "fluid-wagon" then
+									local _,data2 = getTrainCarFilterData(depot, train, car.index)
+									if data2 then
+										local isInput = data2.fluidIngredient and data2.fluidIngredient or false
+										local isOutput = not isInput
+										isInputTrain = isInputTrain or isInput
+										isOutputTrain = isOutputTrain or isOutput
+									end
+								end
+							end
+							if isInputTrain then
+								table.insert(stop.wait_conditions, {type = "circuit", compare_type = "and", condition = {comparator = "=", first_signal = {type = "virtual", name = "train-ingredients-full"}, constant = 0}})
+							end
+							if isOutputTrain then
+								table.insert(stop.wait_conditions, {type = "circuit", compare_type = "and", condition = {comparator = "=", first_signal = {type = "virtual", name = "train-products-empty"}, constant = 0}})
+							end
 						end
 					end
 					train.schedule = data

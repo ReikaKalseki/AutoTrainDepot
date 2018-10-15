@@ -107,7 +107,8 @@ local function getTrainFilterData(depot, train)
 	assert(train ~= nil)
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
 	if not entry.filters then entry.filters = {} end
-	return entry.filters
+	if not entry.filters2 then entry.filters2 = {} end
+	return entry.filters, entry.filters2
 end
 
 local function getTrainIOData(depot, train)
@@ -128,10 +129,11 @@ function getTrainCarFilterData(depot, train, car)
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
 	local idx = entry.indices["fluid-wagon"] and entry.indices["fluid-wagon"][car] or nil
 	if idx == nil or entry.cars[idx] == nil or entry.cars[idx].type ~= "fluid-wagon" then return nil end
-	local filters = getTrainFilterData(depot, train)
+	local filters,filters2 = getTrainFilterData(depot, train)
 	--game.print("loaded stored filter " .. (filters[car] and filters[car] or "nil") .. " for car " .. car)
 	if not filters[car] or type(filters[car]) ~= "number" then filters[car] = 7 end
-	return filters[car]
+	if not filters2[car] or type(filters2[car]) ~= "table" then filters2[car] = {} end
+	return filters[car], filters2[car]
 end
 
 function getTrainCarIOData(depot, train, car)
@@ -159,17 +161,24 @@ local function setTrainCarFilterDataDirect(depot, train, car, data)
 	filters[car] = data
 end
 
-local function setTrainCarFilterData(depot, train, car, options)
+local function setTrainCarFilterData(depot, train, car, options, toggles)
 	local slot = -1
+	local data = {}
 	for i,elem in pairs(options) do
 		if elem.state then
 			slot = i
 			break
 		end
 	end
+	for i,elem in pairs(toggles) do
+		if string.find(elem.name, "fluid-toggle", 1, true) then
+			data.fluidIngredient = elem.state
+		end
+	end
 	--game.print("Setting filter for car " .. car .. " to " .. slot)
-	local filters = getTrainFilterData(depot, train)
+	local filters,filters2 = getTrainFilterData(depot, train)
 	filters[car] = slot
+	filters2[car] = data
 end
 
 local function setTrainCarIOData(depot, train, car, auto, fill, extr)
@@ -337,13 +346,17 @@ function setTrainGui(depot, player, entity)
 			--game.print("Adding " .. id)
 			if car.type == "fluid-wagon" then
 				--gui = root.add{type = "textfield", name = id, text = "Any"}
-				gui = root.add{type = "frame", name = id}
+				local line = root.add{type = "flow", name = id .. "-box", direction = "horizontal"}
+				gui = line.add{type = "frame", name = id}
 				gui.style.height = 30 --24 for flow, 30 for frame
-				local data = getTrainCarFilterData(depot, obj, car.index)
+				local data,data2 = getTrainCarFilterData(depot, obj, car.index)
 				--game.print("Creating GUI for car " .. car.index .. ", data = " .. (data and data or "nil"))
 				for i = 1,7 do --7, not 6; slot 7 is "inactive"
 					gui.add{type = "radiobutton", name = id .. "-button-" .. i, state = i == data}
 				end
+				local gui2 = line.add{type = "frame", name = id .. "b"}
+				gui2.style.height = 30
+				gui2.add{type = "checkbox", name = id .. "-fluid-toggle", caption = "Ingredient", state = data2.fluidIngredient and data2.fluidIngredient or false, tooltip = {"depot-gui-tooltip.fluid-toggle"}}
 			elseif car.type == "cargo-wagon" then
 				gui = root.add{type = "frame", name = id}
 				gui.style.height = 30 --24 for flow, 30 for frame
@@ -395,7 +408,9 @@ local function saveGuiData(depot, player)
 								local idx = tonumber(string.sub(child.tooltip, string.len("Car #")+1))
 								--game.print("Car " .. i .. " from " .. idx .. " of " .. child.tooltip .. " which has child #1 " .. child.children[1].name)
 								if string.find(child.name, "fluid") then
-									setTrainCarFilterData(depot, train, idx, child.children)
+									local ref = child.children[1]
+									idx = tonumber(string.sub(ref.tooltip, string.len("Car #")+1))
+									setTrainCarFilterData(depot, train, idx, ref.children, child.children[2].children)
 								elseif string.find(child.name, "cargo") then
 									setTrainCarIOData(depot, train, idx, child.children[1].state, child.children[2].state, child.children[3].state)
 								end

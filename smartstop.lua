@@ -2,14 +2,22 @@ require "config"
 require "trainhandling"
 
 local function isWagonFull(wagon)
-	local inv = wagon.get_inventory(defines.inventory.cargo_wagon)
-	local filter = inv.get_filter(1)
-	local item = filter and filter or "blueprint"
-	return not inv.can_insert({name=item, count=1})
+	if wagon.type == "cargo-wagon" then
+		local inv = wagon.get_inventory(defines.inventory.cargo_wagon)
+		local filter = inv.get_filter(1)
+		local item = filter and filter or "blueprint"
+		return not inv.can_insert({name=item, count=1})
+	else
+		return wagon.fluidbox[1] and wagon.fluidbox[1].amount >= wagon.fluidbox.get_capacity(1)
+	end
 end
 
 local function isWagonEmpty(wagon)
-	return wagon.get_inventory(defines.inventory.cargo_wagon).is_empty()
+	if wagon.type == "cargo-wagon" then
+		return wagon.get_inventory(defines.inventory.cargo_wagon).is_empty()
+	else
+		return wagon.fluidbox[1] == nil
+	end
 end
 --[[
 local function isTrainEmpty(train)
@@ -83,7 +91,7 @@ function tickSmartTrainStop(depot, entry)
 						local isOutput = (not io.autoControl) or (io.autoControl and ((not io.shouldFill) or io.allowExtraction))
 						local wagon = train.carriages[car.position]
 						if isInput then
-							--game.print("Testing car ".. car.index .. " as input")
+							--game.print("Testing car ".. car.position .. " as input")
 							if not isWagonFull(wagon) then
 								ingredientsFull = false
 							end
@@ -92,12 +100,37 @@ function tickSmartTrainStop(depot, entry)
 							end
 						end
 						if isOutput then
-							--game.print("Testing car ".. car.index .. " as output")
+							--game.print("Testing car ".. car.position .. " as output")
 							if not isWagonFull(wagon) then
 								productsFull = false
 							end
 							if not isWagonEmpty(wagon) then
 								productsEmpty = false
+							end
+						end
+					elseif car.type == "fluid-wagon" then
+						local _,data2 = getTrainCarFilterData(depot, train, car.index)
+						if data2 then
+							local isInput = data2.fluidIngredient and data2.fluidIngredient or false
+							local isOutput = not isInput
+							local wagon = train.carriages[car.position]
+							if isInput then
+								--game.print("Testing car ".. car.position .. " as input")
+								if not isWagonFull(wagon) then
+									ingredientsFull = false
+								end
+								if not isWagonEmpty(wagon) then
+									ingredientsEmpty = false
+								end
+							end
+							if isOutput then
+								--game.print("Testing car ".. car.position .. " as output")
+								if not isWagonFull(wagon) then
+									productsFull = false
+								end
+								if not isWagonEmpty(wagon) then
+									productsEmpty = false
+								end
 							end
 						end
 					end
