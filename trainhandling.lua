@@ -125,6 +125,13 @@ function getTrainItemFilterData(depot, train)
 	return entry.item_filters
 end
 
+function getTrainBypassData(depot, train, station)
+	assert(train ~= nil)
+	local entry = getOrCreateTrainEntryByTrain(depot, train)
+	if not entry.bypassData then entry.bypassData = {} end
+	return entry.bypassData[station]
+end
+
 function getTrainCarFilterData(depot, train, car)
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
 	local idx = entry.indices["fluid-wagon"] and entry.indices["fluid-wagon"][car] or nil
@@ -202,6 +209,16 @@ local function setTrainCarItemFilterData(depot, train, car, guis)
 	filters[car] = data
 end
 
+function setTrainBypassData(depot, train, guis)
+	local entry = getOrCreateTrainEntryByTrain(depot, train)
+	if not entry.bypassData then entry.bypassData = {} end
+	for i = 1,#guis do
+		local button = guis[i].children[1]
+		entry.bypassData[i] = button.elem_value
+		--game.print(serpent.block(entry.bypassData[i]))
+	end
+end
+
 function handleTrainGUIState(event)
 	if string.find(event.element.name, "traingui") and string.find(event.element.name, "button") and string.find(event.element.name, "fluid") then
 		local a, b = string.find(event.element.name, "-button-", 1, true)
@@ -215,6 +232,56 @@ function handleTrainGUIState(event)
 				elem.state = false
 			end
 		end
+	end
+end
+
+local function createBypassGui(depot, player, entry)
+	if entry then		
+		local train = entry.train
+		assert(train ~= nil)
+		--game.print("Trying " .. train .. " from " .. entity.name .. " # " .. entity.unit_number)
+		local obj = getTrainByID(player.force, player.surface, train)
+		if not obj then
+			invalidateTrain(depot, entry)
+			entry = getOrCreateTrainEntry(depot, entity)
+			train = entry.train
+			obj = getTrainByID(player.force, player.surface, train)
+			if not obj then game.print("still no train with id " .. train .. "!!") end
+		end
+		assert(obj ~= nil)
+		local guis = {}
+		local root = player.gui.left.add{type = "frame", name = "traingui-root", direction = "vertical"}
+		local header2 = root.add{type = "label", name = "traingui-bypass-title", caption = "  Station Bypass"}
+		header2.style.height = 20
+		local main = root.add{type = "flow", name = "traingui-bypass-container", direction = "horizontal"}
+		root.tooltip = "Train #" .. train
+		--root.title_top_padding = 0
+		--root.title_bottom_padding = 0
+		local stations = obj.schedule.records
+		local col1 = main.add{type = "flow", name = "traingui-bypass-column1", direction = "vertical"}
+		local col2 = main.add{type = "flow", name = "traingui-bypass-column2", direction = "vertical"}
+		for i = 1,#stations do
+			local id = "traingui-bypass-station-" .. i
+			--game.print("Adding " .. id)
+			local gui = col2.add{type = "frame", name = id .. "b", direction = "horizontal"}
+			--gui.style.height = 24 --24 for flow, 30 for frame
+			local data = getTrainBypassData(depot, obj, i)
+			--game.print("Creating GUI for car " .. car.index .. ", data = " .. (data and data or "nil"))
+			gui.add{type = "choose-elem-button", name = id .. "-button", elem_type = "signal", signal = data}
+			gui.style.top_padding = 0
+			gui.style.bottom_padding = 0
+			gui.tooltip = obj.schedule.records[i].station
+			
+			local gui0 = col1.add{type = "frame", name = id .. "a", direction = "horizontal", caption = tostring(i), tooltip = gui.tooltip}
+			gui0.style.top_padding = gui.style.top_padding
+			gui0.style.bottom_padding = gui.style.bottom_padding
+			gui0.style.height = 39
+			
+			table.insert(guis, gui)
+		end
+		
+		if not entry.guis then entry.guis = {} end
+		entry.guis[player.name] = guis
 	end
 end
 
@@ -382,6 +449,11 @@ function setTrainGui(depot, player, entity)
 			button.style.align = "center"
 		end
 		
+		if obj.schedule and player.force.technologies["bypass-beacons"].researched then
+			local button = buttons.add{type = "button", name = "traingui-bypass", caption = "Bypass", mouse_button_filter = {"left"}}
+			button.style.align = "center"
+		end
+		
 		if not entry.guis then entry.guis = {} end
 		entry.guis[player.name] = guis
 	end
@@ -432,6 +504,8 @@ local function saveGuiData(depot, player)
 						--game.print("Car " .. i .. " from " .. idx .. " of " .. child.tooltip .. " which has child #1 " .. child.children[1].name)
 						if string.find(child.name, "cargo") then
 							setTrainCarItemFilterData(depot, train, idx, child.children)
+						elseif string.find(child.name, "bypass") then
+							setTrainBypassData(depot, train, child.children[2].children)
 						end
 					end
 				end
@@ -476,6 +550,9 @@ function handleTrainGUIClick(event)
 		if string.find(event.element.name, "filters") then
 			handleTrainGUI(event, false)
 			createFilterGui(global.depot, player, entry)
+		elseif string.find(event.element.name, "bypass") then
+			handleTrainGUI(event, false)
+			createBypassGui(global.depot, player, entry)
 		end
 	end
 end

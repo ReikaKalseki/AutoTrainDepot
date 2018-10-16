@@ -141,3 +141,52 @@ function tickSmartTrainStop(depot, entry)
 		end
 	end
 end
+
+function buildSmartStop(depot, entity)
+	local conn = entity.surface.create_entity{name = "smart-train-stop-output", position = {entity.position.x-0.05, entity.position.y+0.875}, force = entity.force}
+	local e2 = entity.surface.create_entity{name = "smart-train-stop-power", position = {entity.position.x, entity.position.y}, force = entity.force}
+	entity.connect_neighbour({target_entity = conn, wire = defines.wire_type.red})
+	depot.stops[entity.unit_number] = {entity = entity, power = e2, output = conn}
+	local key = entity.position.x .. "/" .. entity.position.y
+	local old = depot.stopReplacement and depot.stopReplacement[key] or nil
+	if old and game.tick-old.age < 5 then
+		entity.backer_name = old.old
+		for _,train in pairs(entity.force.get_trains(entity.surface)) do
+			if old.trains[train.id] then
+				local data = train.schedule
+				for _,stop in pairs(data.records) do
+					if stop.station == old.old then
+						stop.station = entity.backer_name
+						local entry = getOrCreateTrainEntryByTrain(depot, train)
+						local isInputTrain = false
+						local isOutputTrain = false
+						for _,car in pairs(entry.cars) do
+							if car.type == "cargo-wagon" then
+								local io = getTrainCarIOData(depot, train, car.index)
+								local isInput = (not io.autoControl) or (io.autoControl and io.shouldFill)
+								local isOutput = (not io.autoControl) or (io.autoControl and ((not io.shouldFill) or io.allowExtraction))
+								isInputTrain = isInputTrain or isInput
+								isOutputTrain = isOutputTrain or isOutput
+							elseif car.type == "fluid-wagon" then
+								local _,data2 = getTrainCarFilterData(depot, train, car.index)
+								if data2 then
+									local isInput = data2.fluidIngredient and data2.fluidIngredient or false
+									local isOutput = not isInput
+									isInputTrain = isInputTrain or isInput
+									isOutputTrain = isOutputTrain or isOutput
+								end
+							end
+						end
+						if isInputTrain then
+							table.insert(stop.wait_conditions, {type = "circuit", compare_type = "and", condition = {comparator = "=", first_signal = {type = "virtual", name = "train-ingredients-full"}, constant = 0}})
+						end
+						if isOutputTrain then
+							table.insert(stop.wait_conditions, {type = "circuit", compare_type = "and", condition = {comparator = "=", first_signal = {type = "virtual", name = "train-products-empty"}, constant = 0}})
+						end
+					end
+				end
+				train.schedule = data
+			end
+		end
+	end
+end

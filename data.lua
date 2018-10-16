@@ -5,6 +5,7 @@ require("prototypes.fluid-depot")
 require("prototypes.unloader")
 require "prototypes.alerts"
 require "prototypes.stop"
+require "prototypes.bypass"
 --require("prototypes.large-storage")
 --require("prototypes.technology")
 

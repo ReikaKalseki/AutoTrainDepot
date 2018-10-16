@@ -21,6 +21,12 @@ function initGlobal(markDirty)
 	if depot.stops == nil then
 		depot.stops = {}
 	end
+	if depot.bypassBeacons == nil then
+		depot.bypassBeacons = {}
+	end
+	if depot.pendingBypasses == nil then
+		depot.pendingBypasses = {}
+	end
 	depot.dirty = markDirty
 end
 
@@ -48,6 +54,28 @@ end)
 script.on_init(function()
 	initGlobal(true)
 end)
+
+local function checkEntityConnections(entity, wire)
+	local net = entity.circuit_connected_entities
+	local clr = wire == defines.wire_type.red and "red" or "green"
+	local data = net[clr]
+	if data then
+		for _,val in pairs(data) do
+			if val.type == "train-stop" then
+				--game.print("Found " .. val.name)
+				return val
+			end
+		end
+	end
+end
+
+local function findConnection(entity)
+	local ret = checkEntityConnections(entity, defines.wire_type.red)
+	if not ret then
+		ret = checkEntityConnections(entity, defines.wire_type.green)
+	end	
+	return ret
+end
 
 script.on_event(defines.events.on_tick, function(event)
 	local depot = global.depot
@@ -88,6 +116,15 @@ script.on_event(defines.events.on_tick, function(event)
 				if event.tick-entry.age > 5 then
 					depot.stopReplacement[pos] = nil
 				end
+			end
+		end
+		
+		for unit,entry in pairs(depot.pendingBypasses) do
+			local conn = findConnection(entry.entity)
+			if conn then
+				depot.pendingBypasses[unit] = nil
+				depot.bypassBeacons[entry.entity.unit_number] = conn.backer_name
+				depot.bypassBeacons[conn.backer_name] = entry.entity
 			end
 		end
 	end
@@ -164,6 +201,14 @@ local function onEntityRemoved(entity)
 			if not depot.stopReplacement then depot.stopReplacement = {} end
 			depot.stopReplacement[key] = {old = entity.backer_name, trains = val, age = game.tick}
 		end
+	elseif entity.name == "station-bypass-beacon" then
+		local depot = global.depot
+		depot.pendingBypasses[entity.unit_number] = nil
+		local name = depot.bypassBeacons[entity.unit_number]
+		depot.bypassBeacons[entity.unit_number] = nil
+		if name then
+			depot.bypassBeacons[name] = nil
+		end
 	end
 end
 
@@ -181,51 +226,11 @@ local function onEntityAdded(entity)
 		entity.operable = false
 	elseif entity.name == "smart-train-stop" then
 		local depot = global.depot
-		local conn = entity.surface.create_entity{name = "smart-train-stop-output", position = {entity.position.x-0.05, entity.position.y+0.875}, force = entity.force}
-		local e2 = entity.surface.create_entity{name = "smart-train-stop-power", position = {entity.position.x, entity.position.y}, force = entity.force}
-		entity.connect_neighbour({target_entity = conn, wire = defines.wire_type.red})
-		depot.stops[entity.unit_number] = {entity = entity, power = e2, output = conn}
-		local key = entity.position.x .. "/" .. entity.position.y
-		local old = depot.stopReplacement and depot.stopReplacement[key] or nil
-		if old and game.tick-old.age < 5 then
-			for _,train in pairs(entity.force.get_trains(entity.surface)) do
-				if old.trains[train.id] then
-					local data = train.schedule
-					for _,stop in pairs(data.records) do
-						if stop.station == old.old then
-							stop.station = entity.backer_name
-							local entry = getOrCreateTrainEntryByTrain(depot, train)
-							local isInputTrain = false
-							local isOutputTrain = false
-							for _,car in pairs(entry.cars) do
-								if car.type == "cargo-wagon" then
-									local io = getTrainCarIOData(depot, train, car.index)
-									local isInput = (not io.autoControl) or (io.autoControl and io.shouldFill)
-									local isOutput = (not io.autoControl) or (io.autoControl and ((not io.shouldFill) or io.allowExtraction))
-									isInputTrain = isInputTrain or isInput
-									isOutputTrain = isOutputTrain or isOutput
-								elseif car.type == "fluid-wagon" then
-									local _,data2 = getTrainCarFilterData(depot, train, car.index)
-									if data2 then
-										local isInput = data2.fluidIngredient and data2.fluidIngredient or false
-										local isOutput = not isInput
-										isInputTrain = isInputTrain or isInput
-										isOutputTrain = isOutputTrain or isOutput
-									end
-								end
-							end
-							if isInputTrain then
-								table.insert(stop.wait_conditions, {type = "circuit", compare_type = "and", condition = {comparator = "=", first_signal = {type = "virtual", name = "train-ingredients-full"}, constant = 0}})
-							end
-							if isOutputTrain then
-								table.insert(stop.wait_conditions, {type = "circuit", compare_type = "and", condition = {comparator = "=", first_signal = {type = "virtual", name = "train-products-empty"}, constant = 0}})
-							end
-						end
-					end
-					train.schedule = data
-				end
-			end
-		end
+		buildSmartStop(depot, entity)
+	elseif entity.name == "station-bypass-beacon" then
+		local depot = global.depot
+		if not depot.pendingBypasses then depot.pendingBypasses = {} end
+		depot.pendingBypasses[entity.unit_number] = {entity = entity}
 	end
 end
 
@@ -263,6 +268,37 @@ local function handleTrainStateChange(train)
 						--force.print("Setting filters on train " .. entry.displayName .. " car " .. car.index .. " to " .. (filter and filter or "nil") .. " for station " .. train.schedule.records[stationIndex].station)
 					end
 				end
+			end
+		end
+	elseif train.state == defines.train_state.on_the_path then --just started moving
+		local station = train.schedule.current
+		local name = train.schedule.records[station].station
+		local bypass = getTrainBypassData(depot, train, station)
+		local entity = depot.bypassBeacons and depot.bypassBeacons[name] or nil
+		if bypass and entity then
+			--have a bypass beacon connected to the stop, and have a global[name] = {}; beacon reads its circuit network
+			local flag = false
+			local network = entity.get_circuit_network(defines.wire_type.red)
+			if not network then network = entity.get_circuit_network(defines.wire_type.green) end
+			if network then
+				local signals = network.signals
+				if signals and #signals > 0 then
+					for _,signal in pairs(signals) do
+						if signal.signal.name == bypass.name and signal.signal.type == bypass.type and signal.count > 0 then
+							flag = true
+							break
+						end
+					end
+				end
+			end
+			if flag then
+				local data = train.schedule
+				data.current = data.current+1
+				if data.current > #data.records then
+					data.current = 1
+				end
+				train.schedule = data
+				handleTrainStateChange(train) --call recursively in case the next station also needs to be skipped
 			end
 		end
 	end

@@ -186,6 +186,44 @@ data:extend({
 	},
 })
 
+data:extend({
+	{
+		type = "technology",
+		name = "bypass-beacons",
+		prerequisites =
+		{
+			"depot-base",
+			"logistics-3",
+			"rail-signals",
+		},
+		icon = "__AutoTrainDepot__/graphics/technology/bypass.png",
+		effects =
+		{
+			{
+				type = "unlock-recipe",
+				recipe = "station-bypass-beacon"
+			}
+		},
+		unit =
+		{
+		  count = 100,
+		  ingredients =
+		  {
+			{"science-pack-1", 1},
+			{"science-pack-2", 1},
+		  },
+		  time = 30
+		},
+		order = "[logistics]-3",
+		icon_size = 128,
+	},
+})
+
+if data.raw.tool["logistic-science-pack"] then
+	table.insert(data.raw.technology["bypass-beacons"].unit.ingredients, {"logistic-science-pack", 1})
+	data.raw.technology["bypass-beacons"].unit.count = 60
+end
+
 if Config.reloader then
 data:extend({
 	{
