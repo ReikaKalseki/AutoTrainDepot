@@ -47,7 +47,7 @@ script.on_configuration_changed(function()
 				entry.stations[station.entity.backer_name] = station
 				depot.stationToDepot[station.entity.unit_number] = entry.controller.unit_number
 				depot.stationToDepot[station.entity.backer_name] = entry.controller.unit_number
-				--game.print("Adding " .. station.entity.backer_name .. " #" .. station.entity.unit_number .. " to depot " .. entry.controller.unit_number)
+				game.print("Adding " .. station.entity.backer_name .. " #" .. station.entity.unit_number .. " to depot " .. entry.controller.unit_number)
 				--entry.stations[key] = nil
 			end
 		end
@@ -271,8 +271,12 @@ local function handleTrainStateChange(train)
 				if controller then
 					--game.print("Unit " .. controller .. " from " .. name .. " > " .. serpent.block(depot.entries[controller]))
 					controller = depot.entries[controller]
-					--game.print("Train " .. entry.displayName .. " is stopping at a depot station " .. name)
-					setTrainFiltersForTrain(depot, controller, train, controller.stations[name])
+					if controller.type == "item" then
+						--game.print("Train " .. entry.displayName .. " is stopping at a depot station " .. name)
+						local station = controller.stations[name]
+						if not station then error("Station " .. name .. " is mapped to depot " .. controller.controller.unit_number .. " yet that depot has no such station entry?! " .. serpent.block(controller.stations)) end
+						setTrainFiltersForTrain(depot, controller, train, station)
+					end
 				end
 			end
 		end

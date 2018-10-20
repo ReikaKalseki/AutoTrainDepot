@@ -83,34 +83,30 @@ local function checkConnections(entry)
 	--if not entry.loopFeeds then entry.loopFeeds = {} end
 
 	local li = {}
+	checkEntityConnections(entry, li, entry.controller, defines.wire_type.red, nil, 0)
+	checkEntityConnections(entry, li, entry.controller, defines.wire_type.green, nil, 0)
 
-	if entry.wire ~= defines.wire_type.green then
-		--game.print("Checking red connections")
-		checkEntityConnections(entry, li, entry.controller, defines.wire_type.red, nil, 0)
-	end
-	
-	if entry.wire ~= defines.wire_type.red then
-		checkEntityConnections(entry, li, entry.controller, defines.wire_type.green, nil, 0)
-	end
-	
 	local closestpump = entry.closest_pump
 	for _,found in pairs(li) do
-		--game.print((found.type and found.type or "nil") .. " from " .. found.entity.type)
-		if found.type == "pump" then
-			entry.pumps[found.entity.unit_number] = {entity = found.entity, wire = found.wire, index = found.step}
-			if not closestpump or found.step < closestpump.distance then
-				closestpump = {distance = found.step, entity = found.entity}
+		if entry.wire == nil or entry.wire == found.wire or found.type == "station" then
+			--game.print((found.type and found.type or "nil") .. " from " .. found.entity.type)
+			if found.type == "pump" then
+				entry.pumps[found.entity.unit_number] = {entity = found.entity, wire = found.wire, index = found.step}
+				if not closestpump or found.step < closestpump.distance then
+					closestpump = {distance = found.step, entity = found.entity}
+				end
+			elseif found.type == "station" then
+				local entry2 = {entity = found.entity, wire = found.wire, input = found.wire == defines.wire_type.red} --so that filling trains uses red
+				table.insert(entry.stations, entry2)
+				--game.print("Adding station " .. found.entity.unit_number .. " # " .. (entry2.input and "input" or "output"))
 			end
-		elseif found.type == "station" then
-			local entry2 = {entity = found.entity, wire = found.wire, input = found.wire == defines.wire_type.red} --so that filling trains uses red
-			table.insert(entry.stations, entry2)
-			--game.print("Adding station " .. found.entity.unit_number .. " # " .. (entry2.input and "input" or "output"))
 		end
 	end
 	--game.print(closestpump and closestpump.distance or "nil")
 	
 	entry.closest_pump = closestpump
 	
+	--[[
 	if #entry.stations > 2 then
 		entry.controller.force.print("Fluid depot @ " .. entry.controller.position.x .. ", " ..entry.controller.position.y .. " connected to too many stations.")
 		entry.stations = {}
@@ -120,6 +116,7 @@ local function checkConnections(entry)
 		entry.controller.force.print("Fluid depot @ " .. entry.controller.position.x .. ", " ..entry.controller.position.y .. " connected to multiple stations of the same type.")
 		entry.stations = {}
 	end
+	--]]
 end
 
 local function readTrains(depot)
