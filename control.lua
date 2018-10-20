@@ -248,24 +248,26 @@ local function handleTrainStateChange(train)
 	local depot = global.depot
 	local force = train.carriages[1].force
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
-	if (train.state == defines.train_state.arrive_station or train.state == defines.train_state.wait_station) and force.technologies["depot-cargo-filters"].researched then
-		local filters = getTrainItemFilterData(depot, train)
-		if filters then
-			local stationIndex = train.schedule.current
-			for _,car in pairs(entry.cars) do
-				if car.type == "cargo-wagon" and stationIndex and filters[car.index] then
-					local entity = train.carriages[car.position]
-					local filter = filters[car.index][stationIndex]
-					local inv = entity.get_inventory(defines.inventory.cargo_wagon)
-					if inv and filter ~= "skip-filter-swap" then
-						for i = 1,#inv do
-							if filter == nil or filter == "nil" then
-								inv.set_filter(i, nil)
-							else
-								inv.set_filter(i, filter)
+	if train.state == defines.train_state.arrive_station or train.state == defines.train_state.wait_station then
+		if force.technologies["depot-cargo-filters"].researched then
+			local filters = getTrainItemFilterData(depot, train)
+			if filters then
+				local stationIndex = train.schedule.current
+				for _,car in pairs(entry.cars) do
+					if car.type == "cargo-wagon" and stationIndex and filters[car.index] then
+						local entity = train.carriages[car.position]
+						local filter = filters[car.index][stationIndex]
+						local inv = entity.get_inventory(defines.inventory.cargo_wagon)
+						if inv and filter ~= "skip-filter-swap" then
+							for i = 1,#inv do
+								if filter == nil or filter == "nil" then
+									inv.set_filter(i, nil)
+								else
+									inv.set_filter(i, filter)
+								end
 							end
+							--force.print("Setting filters on train " .. entry.displayName .. " car " .. car.index .. " to " .. (filter and filter or "nil") .. " for station " .. train.schedule.records[stationIndex].station)
 						end
-						--force.print("Setting filters on train " .. entry.displayName .. " car " .. car.index .. " to " .. (filter and filter or "nil") .. " for station " .. train.schedule.records[stationIndex].station)
 					end
 				end
 			end

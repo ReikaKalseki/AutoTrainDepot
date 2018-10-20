@@ -610,8 +610,12 @@ function tickDepot(depot, entry, tick)
 	end
 	
 	--game.print(input and input.train.id or "nil")
-	setTrainFilters(depot, entry)
-	clearOutputInserters(entry)
+	if isPowerAvailable(entry.controller.force, "redbar-control") then
+		setTrainFilters(depot, entry)
+	end
+	if isPowerAvailable(entry.controller.force, "inserter-cleaning") then
+		clearOutputInserters(entry)
+	end
 	
 	if entry.storageCount and entry.storageCount > 0 then
 		getInputBelts(entry)

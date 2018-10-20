@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.172
+Date: Oct 20 2018
+	- Added a method to keep a given input to a depot always on - change the condition to the "Always" signal
+	- Tweaked storage balancing again - it now runs when there is not a train in the station, but only rarely
+	- Fixed a script error with removing fluid depots connected to some pumps that were previously fast-replaced
+---------------------------------------------------------------------------------------------------
 Version: 1.0.164
 Date: Oct 15 2018
 	- Added Smart Train Stop and associated signals and behavior
