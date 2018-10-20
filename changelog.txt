@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.164
+Date: Oct 15 2018
+	- Added Smart Train Stop and associated signals and behavior
+	- Added Station Bypass Beacon and associated logic
+---------------------------------------------------------------------------------------------------
 Version: 1.0.160
 Date: Oct 10 2018
 	- Recreated Rapid Train Loader

@@ -3,7 +3,8 @@ require "constants"
 require "trainhandling"
 require "belthandling"
 
-local balanceRate = 240--600 --10s -> 4s since now only runs if there is a train stopped there
+local balanceRate = 240 --4s
+local balanceRateNoTrain = 600*3 --30s
 
 local function isPowerAvailable(force, power)
 	--game.print("Checking power " .. power .. ": " .. (force.technologies["depot-" .. power].researched and "has" or "no"))
@@ -170,6 +171,12 @@ end
 
 local function setInputItem(depot, input, item)
 	local control = input.entity.get_control_behavior()
+	
+	if control.circuit_condition and control.circuit_condition.first_signal and control.circuit_condition.first_signal.type == "item" and control.circuit_condition.first_signal.name == "always-on" then
+		control.circuit_condition = {condition={comparator="=", first_signal={type="item", name="always-on"}, constant=0}}
+		return
+	end
+	
 	if item == nil then
 		input.item = nil
 		control.circuit_condition = {condition={comparator="=", first_signal={type="item", name="rocket-part"}, constant=-973}}
@@ -621,8 +628,10 @@ function tickDepot(depot, entry, tick)
 				break
 			end
 		end
-		--game.print("Comparing " .. tick .. " = " .. tick%balanceRate .. " vs " .. (entry.controller.unit_number-entry.controller.unit_number%tickRate) .. " to " .. (entry.controller.unit_number-entry.controller.unit_number%tickRate)%balanceRate)
-		if hasFillTrains and (not entry.isFull) and tick%balanceRate == (entry.controller.unit_number-entry.controller.unit_number%tickRate)%balanceRate and isPowerAvailable(entry.controller.force, "balancing") then
+		
+		local rate = hasFillTrains and balanceRate or balanceRateNoTrain
+		--game.print("Comparing " .. tick .. " = " .. tick%rate .. " vs " .. (entry.controller.unit_number-entry.controller.unit_number%tickRate) .. " to " .. (entry.controller.unit_number-entry.controller.unit_number%tickRate)%rate)
+		if (not entry.isFull) and tick%rate == (entry.controller.unit_number-entry.controller.unit_number%tickRate)%rate and isPowerAvailable(entry.controller.force, "balancing") then
 			--manageLoopFeeds(entry)
 			balanceStorages(entry)
 		end

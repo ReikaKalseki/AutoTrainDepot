@@ -144,7 +144,7 @@ local function invalidate(entry)
 					end
 				end
 				pump.combinator.destroy()
-				if pole then
+				if pole and pole.valid and pump.entity.valid then
 					pole.connect_neighbour({target_entity = pump.entity, wire = pump.wire})
 				end
 			end
@@ -276,10 +276,8 @@ local function handleTrainStateChange(train)
 		local bypass = getTrainBypassData(depot, train, station)
 		local entity = depot.bypassBeacons and depot.bypassBeacons[name] or nil
 		if bypass and entity then
-			--have a bypass beacon connected to the stop, and have a global[name] = {}; beacon reads its circuit network
 			local flag = false
 			local network = entity.get_circuit_network(defines.wire_type.red)
-			if not network then network = entity.get_circuit_network(defines.wire_type.green) end
 			if network then
 				local signals = network.signals
 				if signals and #signals > 0 then
@@ -287,6 +285,20 @@ local function handleTrainStateChange(train)
 						if signal.signal.name == bypass.name and signal.signal.type == bypass.type and signal.count > 0 then
 							flag = true
 							break
+						end
+					end
+				end
+			end
+			if not flag then
+				network = entity.get_circuit_network(defines.wire_type.green)
+				if network then
+				local signals = network.signals
+					if signals and #signals > 0 then
+						for _,signal in pairs(signals) do
+							if signal.signal.name == bypass.name and signal.signal.type == bypass.type and signal.count > 0 then
+								flag = true
+								break
+							end
 						end
 					end
 				end
