@@ -283,31 +283,25 @@ local function checkConnections(entry)
 	--if not entry.loopFeeds then entry.loopFeeds = {} end
 
 	local li = {}
-
-	if entry.wire ~= defines.wire_type.green then
-		--game.print("Checking red connections")
-		checkEntityConnections(entry, li, entry.controller, defines.wire_type.red)
-	end
-	
-	if #li == 0 then
-		if entry.wire ~= defines.wire_type.red then
-			checkEntityConnections(entry, li, entry.controller, defines.wire_type.green)
-		end
-	end
+	checkEntityConnections(entry, li, entry.controller, defines.wire_type.red)
+	checkEntityConnections(entry, li, entry.controller, defines.wire_type.green)
 	
 	for _,found in pairs(li) do
-		if found.type == "storage" then
-			bindController(entry, found.entity, found.wire)
-		elseif found.type == "loop" then
-			--game.print("Caching loop # " .. found.entity.unit_number)
-			--entry.loopFeeds[found.entity.unit_number] = {entity = found.entity, source = found.from, target = found.to}
-		elseif found.type == "station" then
-			local entry2 = {entity = found.entity, wire = found.wire, input = found.wire == defines.wire_type.red} --so that filling trains uses red
-			table.insert(entry.stations, entry2)
-			--game.print("Adding station " .. found.entity.unit_number .. " # " .. (entry2.input and "input" or "output"))
+		if entry.wire == nil or entry.wire == found.wire or found.type == "station" then
+			if found.type == "storage" then
+				bindController(entry, found.entity, found.wire)
+			elseif found.type == "loop" then
+				--game.print("Caching loop # " .. found.entity.unit_number)
+				--entry.loopFeeds[found.entity.unit_number] = {entity = found.entity, source = found.from, target = found.to}
+			elseif found.type == "station" then
+				local entry2 = {entity = found.entity, wire = found.wire, input = found.wire == defines.wire_type.red} --so that filling trains uses red
+				entry.stations[found.entity.backer_name] = entry2
+				--game.print("Adding station " .. found.entity.backer_name .. " to depot " .. entry.controller.unit_number .. " : " .. (entry2.input and "input" or "output"))
+			end
 		end
 	end
 	
+	--[[
 	if #entry.stations > 2 then
 		entry.controller.force.print("Depot @ " .. entry.controller.position.x .. ", " ..entry.controller.position.y .. " connected to too many stations.")
 		entry.stations = {}
@@ -317,6 +311,7 @@ local function checkConnections(entry)
 		entry.controller.force.print("Depot @ " .. entry.controller.position.x .. ", " ..entry.controller.position.y .. " connected to multiple stations of the same type.")
 		entry.stations = {}
 	end
+	--]]
 end
 
 local function setCrossFeedControlSignal(entry, i)
@@ -505,6 +500,30 @@ local function manageLoopFeeds(depot) --too laggy
 	end
 end
 
+function setTrainFiltersForTrain(depot, entry, train, station)
+	if station.input then
+		local entry2 = getOrCreateTrainEntryByTrain(depot, train)
+		if entry2 then
+			for idx,car in pairs(entry2.cars) do
+				if car.type == "cargo-wagon" then
+					--game.print("Checking car #" .. car.index .. ": " .. car.type)
+					local data = getTrainCarIOData(depot, train, car.index)
+					local wagon = train.carriages[idx]
+					if data.autoControl then
+						if data.shouldFill then
+							wagon.get_inventory(defines.inventory.cargo_wagon).setbar()
+						else
+							wagon.get_inventory(defines.inventory.cargo_wagon).setbar(1)
+						end
+					end
+				end
+			end
+		end
+	else
+		
+	end
+end
+
 local function setTrainFilters(depot, entry)
 	--game.print(#entry.stations)
 	for _,station in pairs(entry.stations) do
@@ -513,27 +532,7 @@ local function setTrainFilters(depot, entry)
 			if train.station == station.entity then
 				--game.print(train.id)
 				local ret = {station = station.entity, train = train}
-				if station.input then
-					local entry2 = getOrCreateTrainEntryByTrain(depot, train)
-					if entry2 then
-						for idx,car in pairs(entry2.cars) do
-							if car.type == "cargo-wagon" then
-								--game.print("Checking car #" .. car.index .. ": " .. car.type)
-								local data = getTrainCarIOData(depot, train, car.index)
-								local wagon = train.carriages[idx]
-								if data.autoControl then
-									if data.shouldFill then
-										wagon.get_inventory(defines.inventory.cargo_wagon).setbar()
-									else
-										wagon.get_inventory(defines.inventory.cargo_wagon).setbar(1)
-									end
-								end
-							end
-						end
-					end
-				else
-					
-				end
+				setTrainFiltersForTrain(depot, entry, train, station)
 			elseif not (train.station and depot.depotStations and depot.depotStations[train.station.unit_number]) then --clear all filters if parked at a different non-depot station
 				local entry2 = getOrCreateTrainEntryByTrain(depot, train)
 				if entry2 then

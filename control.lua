@@ -27,6 +27,9 @@ function initGlobal(markDirty)
 	if depot.pendingBypasses == nil then
 		depot.pendingBypasses = {}
 	end
+	if depot.stationToDepot == nil then
+		depot.stationToDepot = {}
+	end
 	depot.dirty = markDirty
 end
 
@@ -34,10 +37,21 @@ script.on_configuration_changed(function()
 	initGlobal(true)
 	local depot = global.depot
 	
-	for _,entry in pairs(depot.entries) do
+	for key,entry in pairs(depot.entries) do
+		depot.entries[entry.controller.unit_number] = entry
 		if entry.type == nil then
 			entry.type = "item"
 		end
+		if entry.stations then
+			for key,station in pairs(entry.stations) do
+				entry.stations[station.entity.backer_name] = station
+				depot.stationToDepot[station.entity.unit_number] = entry.controller.unit_number
+				depot.stationToDepot[station.entity.backer_name] = entry.controller.unit_number
+				--game.print("Adding " .. station.entity.backer_name .. " #" .. station.entity.unit_number .. " to depot " .. entry.controller.unit_number)
+				--entry.stations[key] = nil
+			end
+		end
+		--depot.entries[key] = nil
 	end
 	
 	if depot.trainAlerts then
@@ -249,6 +263,19 @@ local function handleTrainStateChange(train)
 	local force = train.carriages[1].force
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
 	if train.state == defines.train_state.arrive_station or train.state == defines.train_state.wait_station then
+		if depot.stationToDepot and force.technologies["depot-redbar-control"].researched then
+			local stationIndex = train.schedule.current
+			if stationIndex then
+				local name = train.schedule.records[stationIndex].station
+				local controller = depot.stationToDepot[name]
+				if controller then
+					--game.print("Unit " .. controller .. " from " .. name .. " > " .. serpent.block(depot.entries[controller]))
+					controller = depot.entries[controller]
+					--game.print("Train " .. entry.displayName .. " is stopping at a depot station " .. name)
+					setTrainFiltersForTrain(depot, controller, train, controller.stations[name])
+				end
+			end
+		end
 		if force.technologies["depot-cargo-filters"].researched then
 			local filters = getTrainItemFilterData(depot, train)
 			if filters then
