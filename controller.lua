@@ -91,6 +91,9 @@ local function getInputBelts(depot)
 					local belt = getLoaderFeed(loader)
 					if belt then
 						--game.print("Loader has a belt")
+						loader.active = true
+						local src = getLoaderSource(belt, true)
+						if src then src.active = true end
 						table.insert(feeds, belt)
 					end
 				end
@@ -151,7 +154,7 @@ local function getInputBelts(depot)
 		for _,pull in pairs(pulls) do -- can be belt OR inserter, nothing else
 			if not depot.pulls[pull.unit_number] then --prevent duplicate or too many entries
 			
-			pull.active = true --turn any disabled entities back on, and enable any unloaders
+			pull.active = true --turn any disabled entities back on, and enable any reloaders
 					
 			--storage.connect_neighbour({wire = depot.wire, target_entity = feed})
 			

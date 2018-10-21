@@ -235,7 +235,7 @@ local function onEntityAdded(entity)
 		local depot = global.depot
 		local entry = {controller = entity, type = "fluid"}
 		table.insert(depot.entries, entry)
-	elseif entity.name == "train-unloader" then
+	elseif entity.name == "train-unloader" or entity.name == "train-reloader" then
 		entity.active = false
 		entity.operable = false
 	elseif entity.name == "smart-train-stop" then

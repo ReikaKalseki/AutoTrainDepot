@@ -7,10 +7,16 @@ if Config.unloader and data.raw.loader["express-loader"] then
 
 	loader.structure.direction_in.sheet.filename = "__AutoTrainDepot__/graphics/entity/unloader.png"
 	loader.structure.direction_out.sheet.filename = "__AutoTrainDepot__/graphics/entity/unloader.png"
-
-	loader.speed = data.raw["transport-belt"]["express-transport-belt"].speed*5
 	
 	local belt = --[[data.raw["transport-belt"]["turbo-transport-belt"] and data.raw["transport-belt"]["turbo-transport-belt"] or --]]data.raw["transport-belt"]["express-transport-belt"]
+	
+	for _,belt2 in pairs(data.raw["transport-belt"]) do
+		if belt2.speed > belt.speed then
+			belt = belt2
+		end
+	end
+
+	loader.speed = belt.speed
 	
 	loader.belt_horizontal = belt.belt_horizontal
 	loader.belt_vertical = belt.belt_vertical
