@@ -132,6 +132,13 @@ function getTrainBypassData(depot, train, station)
 	return entry.bypassData[station]
 end
 
+function getTrainBypassSelfData(depot, train)
+	assert(train ~= nil)
+	local entry = getOrCreateTrainEntryByTrain(depot, train)
+	if not entry.bypassSelfData then entry.bypassSelfData = {} end
+	return entry.bypassSelfData
+end
+
 function getTrainCarFilterData(depot, train, car)
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
 	local idx = entry.indices["fluid-wagon"] and entry.indices["fluid-wagon"][car] or nil
@@ -397,6 +404,8 @@ function setTrainGui(depot, player, entity)
 		header0.style.height = 34
 		header0.style.width = 220
 		header0.style.align = "center"
+		local bypass = getTrainBypassSelfData(depot, obj)
+		local header1 = root.add{type = "checkbox", name = "traingui-bypass-toggle", caption = "Skip Fill Depot if Almost Full", state = bypass and bypass.active or false, tooltip = {"depot-gui-tooltip.bypass-toggle"}}
 		local header = root.add{type = "flow", name = "traingui-header"}
 		header.style.height = 24
 		local spacer = header.add{type = "sprite", name = "traingui-header-spacer", "utility/empty"}
@@ -463,29 +472,30 @@ local function getTrainForGui(player, text)
 	return getTrainByID(player.surface, player.force, tonumber(string.sub(text, 1+string.len("Train #"))))
 end
 
-local function saveGuiData(depot, player)
+local function saveGuiData(depot, train, player)
+	local bypass = getTrainBypassSelfData(depot, train)
+	
 	for _,elem0 in pairs(player.gui.left.children) do
 		if elem0.name == "traingui-container" then
 			for _,elem in pairs(elem0.children) do
 				if elem.name == "traingui-root" then
-					local train = getTrainForGui(player, elem.tooltip)
 					--game.print(train and train.id or "nil")
-					local entry = train and getOrCreateTrainEntryByTrain(depot, train) or nil
+					local entry = getOrCreateTrainEntryByTrain(depot, train)
 					--game.print("Has entry? " .. (entry and "yes" or "no"))
-					if entry then
-						for i,child in pairs(elem.children) do
-							if child.name == "traingui-title" then
-								entry.displayName = child.text
-							elseif i > 1 and child.children and #child.children > 0 then
-								local idx = tonumber(string.sub(child.tooltip, string.len("Car #")+1))
-								--game.print("Car " .. i .. " from " .. idx .. " of " .. child.tooltip .. " which has child #1 " .. child.children[1].name)
-								if string.find(child.name, "fluid") then
-									local ref = child.children[1]
-									idx = tonumber(string.sub(ref.tooltip, string.len("Car #")+1))
-									setTrainCarFilterData(depot, train, idx, ref.children, child.children[2].children)
-								elseif string.find(child.name, "cargo") then
-									setTrainCarIOData(depot, train, idx, child.children[1].state, child.children[2].state, child.children[3].state)
-								end
+					for i,child in pairs(elem.children) do
+						if child.name == "traingui-title" then
+							entry.displayName = child.text
+						elseif child.name == "traingui-bypass-toggle" then
+							bypass.active = child.state
+						elseif i > 1 and child.children and #child.children > 0 then
+							local idx = tonumber(string.sub(child.tooltip, string.len("Car #")+1))
+							--game.print("Car " .. i .. " from " .. idx .. " of " .. child.tooltip .. " which has child #1 " .. child.children[1].name)
+							if string.find(child.name, "fluid") then
+								local ref = child.children[1]
+								idx = tonumber(string.sub(ref.tooltip, string.len("Car #")+1))
+								setTrainCarFilterData(depot, train, idx, ref.children, child.children[2].children)
+							elseif string.find(child.name, "cargo") then
+								setTrainCarIOData(depot, train, idx, child.children[1].state, child.children[2].state, child.children[3].state)
 							end
 						end
 					end
@@ -493,25 +503,64 @@ local function saveGuiData(depot, player)
 				end
 			end
 		elseif elem0.name == "traingui-root" then
-			local train = getTrainForGui(player, elem0.tooltip)
 			--game.print(train and train.id or "nil")
-			local entry = train and getOrCreateTrainEntryByTrain(depot, train) or nil
+			local entry = getOrCreateTrainEntryByTrain(depot, train)
 			--game.print("Has entry? " .. (entry and "yes" or "no"))
-			if entry then
-				for i,child in pairs(elem0.children) do
-					if i > 1 and child.children and #child.children > 0 then
-						local idx = tonumber(string.sub(child.tooltip, string.len("Car #")+1))
-						--game.print("Car " .. i .. " from " .. idx .. " of " .. child.tooltip .. " which has child #1 " .. child.children[1].name)
-						if string.find(child.name, "cargo") then
-							setTrainCarItemFilterData(depot, train, idx, child.children)
-						elseif string.find(child.name, "bypass") then
-							setTrainBypassData(depot, train, child.children[2].children)
-						end
+			for i,child in pairs(elem0.children) do
+				if i > 1 and child.children and #child.children > 0 then
+					local idx = tonumber(string.sub(child.tooltip, string.len("Car #")+1))
+					--game.print("Car " .. i .. " from " .. idx .. " of " .. child.tooltip .. " which has child #1 " .. child.children[1].name)
+					if string.find(child.name, "cargo") then
+						setTrainCarItemFilterData(depot, train, idx, child.children)
+					elseif string.find(child.name, "bypass") then
+						setTrainBypassData(depot, train, child.children[2].children)
 					end
 				end
 			end
 			break
 		end
+	end
+	
+	--[[
+	local pickup = nil
+	for i,station in ipairs(train.schedule.records) do
+		local name = station.station
+		local controller = depot.stationToDepot[name]
+		game.print(name .. " > " .. serpent.block(controller))
+		if controller then
+			controller = depot.entries[controller]
+			if controller.type == "item" then
+				local has = controller.stations[name]
+				if has.input then
+					pickup = i
+					break
+				end
+			end
+		end
+	end
+	if pickup then
+	--]]
+	if bypass.active then
+		local capacities = {}
+		for _,car in pairs(train.carriages) do
+			if car.type == "cargo-wagon" then
+				local inv = car.get_inventory(defines.inventory.cargo_wagon)
+				for i = 1,#inv do
+					local filter = inv.get_filter(i)
+					if filter then
+						local has = capacities[filter] and capacities[filter] or 0
+						capacities[filter] = has+1
+					end
+				end
+			end
+		end
+		for item,slots in pairs(capacities) do
+			slots = slots*game.item_prototypes[item].stack_size
+			slots = math.ceil(slots*0.75)
+			capacities[item] = slots
+		end
+		bypass.counts = capacities
+		--game.print(serpent.block(bypass.counts))
 	end
 end
 
@@ -525,7 +574,9 @@ function handleTrainGUI(event, open)
 	if open and entity and isTrainEntity(entity) then
 		setTrainGui(global.depot, player, entity)
 	else
-		saveGuiData(global.depot, player)
+		if entity and isTrainEntity(entity) then
+			saveGuiData(global.depot, entity.train, player)
+		end
 		setTrainGui(global.depot, player, nil)
 	end
 end

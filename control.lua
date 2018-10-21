@@ -47,7 +47,7 @@ script.on_configuration_changed(function()
 				entry.stations[station.entity.backer_name] = station
 				depot.stationToDepot[station.entity.unit_number] = entry.controller.unit_number
 				depot.stationToDepot[station.entity.backer_name] = entry.controller.unit_number
-				game.print("Adding " .. station.entity.backer_name .. " #" .. station.entity.unit_number .. " to depot " .. entry.controller.unit_number)
+				--game.print("Adding " .. station.entity.backer_name .. " #" .. station.entity.unit_number .. " to depot " .. entry.controller.unit_number)
 				--entry.stations[key] = nil
 			end
 		end
@@ -94,12 +94,21 @@ end
 script.on_event(defines.events.on_tick, function(event)
 	local depot = global.depot
 	if event.tick%tickRate == 0 then
-		for i, entry in ipairs(depot.entries) do
-			--game.print("Ticking depot " .. entry.storage.name)
-			if entry.type == "item" then
-				tickDepot(depot, entry, event.tick)
-			elseif entry.type == "fluid" then
-				tickFluidDepot(depot, entry, event.tick)
+		for unit,entry in pairs(depot.entries) do
+			if entry.controller.valid then
+				--game.print("Ticking depot " .. entry.storage.name)
+				if entry.type == "item" then
+					tickDepot(depot, entry, event.tick)
+				elseif entry.type == "fluid" then
+					tickFluidDepot(depot, entry, event.tick)
+				end
+				for key,station in pairs(entry.stations) do
+					depot.stationToDepot[station.entity.unit_number] = entry.controller.unit_number
+					depot.stationToDepot[station.entity.backer_name] = entry.controller.unit_number
+					--game.print(station.entity.backer_name .. " > " .. entry.controller.unit_number)
+				end
+			else
+				depot.entries[unit] = nil
 			end
 		end
 	end
@@ -176,14 +185,12 @@ end
 local function onEntityRemoved(entity)
 	if entity.name == "depot-controller" or entity.name == "depot-fluid-controller" then
 		local depot = global.depot
-		for i, entry in ipairs(depot.entries) do
-			if entry.controller.position.x == entity.position.x and entry.controller.position.y == entity.position.y then
-				invalidate(entry)
-				--entry.placer.destroy()
-				--entry.render.destroy()
-				table.remove(depot.entries, i)
-				break
-			end
+		local entry = depot.entries[entity.unit_number]
+		if entry then
+			invalidate(entry)
+			--entry.placer.destroy()
+			--entry.render.destroy()
+			depot.entries[entity.unit_number] = nil
 		end
 	elseif entity.name == "smart-train-stop" then
 		local depot = global.depot
@@ -230,11 +237,11 @@ local function onEntityAdded(entity)
 	if entity.name == "depot-controller" then
 		local depot = global.depot
 		local entry = {controller = entity, storages = {}, type = "item"}
-		table.insert(depot.entries, entry)
+		depot.entries[entity.unit_number] = entry
 	elseif entity.name == "depot-fluid-controller" then
 		local depot = global.depot
 		local entry = {controller = entity, type = "fluid"}
-		table.insert(depot.entries, entry)
+		depot.entries[entity.unit_number] = entry
 	elseif entity.name == "train-unloader" or entity.name == "train-reloader" then
 		entity.active = false
 		entity.operable = false
@@ -262,30 +269,23 @@ local function handleTrainStateChange(train)
 	local depot = global.depot
 	local force = train.carriages[1].force
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
+	local stationIndex = train.schedule.current
+	local name = train.schedule.records[stationIndex].station
+	local controller = depot.stationToDepot and depot.stationToDepot[name] or nil
+	controller = controller and depot.entries[controller] or nil
+	local stationEntry = controller and controller.stations[name] or nil
 	if train.state == defines.train_state.arrive_station or train.state == defines.train_state.wait_station then
-		if depot.stationToDepot and force.technologies["depot-redbar-control"].researched then
-			local stationIndex = train.schedule.current
-			if stationIndex then
-				local name = train.schedule.records[stationIndex].station
-				local controller = depot.stationToDepot[name]
-				if controller then
-					--game.print("Unit " .. controller .. " from " .. name .. " > " .. serpent.block(depot.entries[controller]))
-					controller = depot.entries[controller]
-					if controller.type == "item" then
-						--game.print("Train " .. entry.displayName .. " is stopping at a depot station " .. name)
-						local station = controller.stations[name]
-						if not station then error("Station " .. name .. " is mapped to depot " .. controller.controller.unit_number .. " yet that depot has no such station entry?! " .. serpent.block(controller.stations)) end
-						setTrainFiltersForTrain(depot, controller, train, station)
-					end
-				end
-			end
+		if controller and controller.type == "item" and force.technologies["depot-redbar-control"].researched then
+			--game.print("Unit " .. controller .. " from " .. name .. " > " .. serpent.block(depot.entries[controller]))
+			--game.print("Train " .. entry.displayName .. " is stopping at a depot station " .. name)
+			if not stationEntry then error("Station " .. name .. " is mapped to depot " .. controller.controller.unit_number .. " yet that depot has no such station entry?! " .. serpent.block(controller.stations)) end
+			setTrainFiltersForTrain(depot, controller, train, stationEntry)
 		end
 		if force.technologies["depot-cargo-filters"].researched then
 			local filters = getTrainItemFilterData(depot, train)
 			if filters then
-				local stationIndex = train.schedule.current
 				for _,car in pairs(entry.cars) do
-					if car.type == "cargo-wagon" and stationIndex and filters[car.index] then
+					if car.type == "cargo-wagon" and filters[car.index] then
 						local entity = train.carriages[car.position]
 						local filter = filters[car.index][stationIndex]
 						local inv = entity.get_inventory(defines.inventory.cargo_wagon)
@@ -306,10 +306,26 @@ local function handleTrainStateChange(train)
 	elseif train.state == defines.train_state.on_the_path then --just started moving
 		local station = train.schedule.current
 		local name = train.schedule.records[station].station
+		local bypassSelf = getTrainBypassSelfData(depot, train)
 		local bypass = getTrainBypassData(depot, train, station)
 		local entity = depot.bypassBeacons and depot.bypassBeacons[name] or nil
-		if bypass and entity then
-			local flag = false
+		
+		local flag = false
+		
+		if bypassSelf and bypassSelf.active and controller and controller.type == "item" and stationEntry and stationEntry.input then
+			local flag2 = false
+			for item,thresh in pairs(bypassSelf.counts) do
+				if train.get_item_count(item) < thresh then
+					flag2 = true
+					break
+				end
+			end
+			if not flag2 then
+				flag = true
+			end
+		end
+		
+		if bypass and entity and (not flag) then
 			local network = entity.get_circuit_network(defines.wire_type.red)
 			if network then
 				local signals = network.signals
@@ -336,15 +352,15 @@ local function handleTrainStateChange(train)
 					end
 				end
 			end
-			if flag then
-				local data = train.schedule
-				data.current = data.current+1
-				if data.current > #data.records then
-					data.current = 1
-				end
-				train.schedule = data
-				handleTrainStateChange(train) --call recursively in case the next station also needs to be skipped
+		end
+		if flag then
+			local data = train.schedule
+			data.current = data.current+1
+			if data.current > #data.records then
+				data.current = 1
 			end
+			train.schedule = data
+			handleTrainStateChange(train) --call recursively in case the next station also needs to be skipped
 		end
 	end
 end
