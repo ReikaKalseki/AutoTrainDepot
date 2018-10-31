@@ -527,6 +527,21 @@ function setTrainFiltersForTrain(depot, entry, train, station)
 	end
 end
 
+function setTrainFiltersForTrainNonDepot(depot, entry, train)
+	for idx,car in pairs(entry.cars) do
+		if car.type == "cargo-wagon" then
+			local data = getTrainCarIOData(depot, train, car.index)
+			if data.autoControl then
+				if train.station or train.state == defines.train_state.manual_control then
+					train.carriages[idx].get_inventory(defines.inventory.cargo_wagon).setbar()
+				else
+					train.carriages[idx].get_inventory(defines.inventory.cargo_wagon).setbar(1)
+				end
+			end
+		end
+	end
+end
+
 local function setTrainFilters(depot, entry)
 	--game.print(#entry.stations)
 	for _,station in pairs(entry.stations) do
@@ -538,22 +553,18 @@ local function setTrainFilters(depot, entry)
 				setTrainFiltersForTrain(depot, entry, train, station)
 			elseif not (train.station and depot.depotStations and depot.depotStations[train.station.unit_number]) then --clear all filters if parked at a different non-depot station
 				local entry2 = getOrCreateTrainEntryByTrain(depot, train)
-				if entry2 then
-					for idx,car in pairs(entry2.cars) do
-						if car.type == "cargo-wagon" then
-							local data = getTrainCarIOData(depot, train, car.index)
-							if data.autoControl then
-								if train.station or train.state == defines.train_state.manual_control then
-									train.carriages[idx].get_inventory(defines.inventory.cargo_wagon).setbar()
-								else
-									train.carriages[idx].get_inventory(defines.inventory.cargo_wagon).setbar(1)
-								end
-							end
-						end
-					end
-				end
+				setTrainFiltersForTrainNonDepot(depot, entry2, train)
 			end
 		end
+	end
+end
+
+local function clearInserter(pull)
+	local added = pull.storage.insert(pull.entity.held_stack)
+	if added >= pull.entity.held_stack.count then
+		pull.entity.held_stack.clear()
+	else
+		pull.entity.held_stack.count = pull.entity.held_stack.count-added
 	end
 end
 
@@ -562,6 +573,7 @@ local function clearOutputInserters(entry)
 	for unit,pull in pairs(entry.pulls) do
 		if pull.entity.valid and pull.storage.valid then
 			if pull.entity.held_stack and pull.entity.held_stack.valid_for_read then
+				--[[
 				local empty = pull.entity.drop_position
 				local area = {{empty.x-1, empty.y-1}, {empty.x+1, empty.y+1}}
 				local rail = pull.entity.surface.find_entities_filtered{type = "straight-rail", limit = 1, area = area}
@@ -571,12 +583,17 @@ local function clearOutputInserters(entry)
 					
 					else
 						--game.print("Adding " .. pull.entity.held_stack.name .. " x" .. pull.entity.held_stack.count)
-						local added = pull.storage.insert(pull.entity.held_stack)
-						if added >= pull.entity.held_stack.count then
-							pull.entity.held_stack.clear()
-						else
-							pull.entity.held_stack.count = pull.entity.held_stack.count-added
-						end
+						clearInserter(pull)
+					end
+				end
+				--]]
+				
+				if pull.entity.held_stack_position.x == pull.entity.drop_position.x and pull.entity.held_stack_position.y == pull.entity.drop_position.y then --is "waiting" to drop
+					if pull.wasStuck then
+						clearInserter(pull)
+						pull.wasStuck = false
+					else
+						pull.wasStuck = true
 					end
 				end
 			end
@@ -612,9 +629,10 @@ function tickDepot(depot, entry, tick)
 	end
 	
 	--game.print(input and input.train.id or "nil")
-	if isPowerAvailable(entry.controller.force, "redbar-control") then
-		setTrainFilters(depot, entry)
-	end
+	
+	--if isPowerAvailable(entry.controller.force, "redbar-control") then
+	--	setTrainFilters(depot, entry)
+	--end
 	if isPowerAvailable(entry.controller.force, "inserter-cleaning") then
 		clearOutputInserters(entry)
 	end

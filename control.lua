@@ -269,17 +269,21 @@ local function handleTrainStateChange(train)
 	local depot = global.depot
 	local force = train.carriages[1].force
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
-	local stationIndex = train.schedule.current
-	local name = train.schedule.records[stationIndex].station
-	local controller = depot.stationToDepot and depot.stationToDepot[name] or nil
+	local stationIndex = train.schedule and train.schedule.current or nil
+	local name = stationIndex and train.schedule.records[stationIndex].station or nil
+	local controller = name and depot.stationToDepot and depot.stationToDepot[name] or nil
 	controller = controller and depot.entries[controller] or nil
 	local stationEntry = controller and controller.stations[name] or nil
 	if train.state == defines.train_state.arrive_station or train.state == defines.train_state.wait_station then
-		if controller and controller.type == "item" and force.technologies["depot-redbar-control"].researched then
-			--game.print("Unit " .. controller .. " from " .. name .. " > " .. serpent.block(depot.entries[controller]))
-			--game.print("Train " .. entry.displayName .. " is stopping at a depot station " .. name)
-			if not stationEntry then error("Station " .. name .. " is mapped to depot " .. controller.controller.unit_number .. " yet that depot has no such station entry?! " .. serpent.block(controller.stations)) end
-			setTrainFiltersForTrain(depot, controller, train, stationEntry)
+		if force.technologies["depot-redbar-control"].researched then
+			if controller and controller.type == "item" then
+				--game.print("Unit " .. controller .. " from " .. name .. " > " .. serpent.block(depot.entries[controller]))
+				--game.print("Train " .. entry.displayName .. " is stopping at a depot station " .. name)
+				if not stationEntry then error("Station " .. name .. " is mapped to depot " .. controller.controller.unit_number .. " yet that depot has no such station entry?! " .. serpent.block(controller.stations)) end
+				setTrainFiltersForTrain(depot, controller, train, stationEntry)
+			else
+				setTrainFiltersForTrainNonDepot(depot, entry, train)
+			end
 		end
 		if force.technologies["depot-cargo-filters"].researched then
 			local filters = getTrainItemFilterData(depot, train)
@@ -312,16 +316,30 @@ local function handleTrainStateChange(train)
 		
 		local flag = false
 		
-		if bypassSelf and bypassSelf.active and controller and controller.type == "item" and stationEntry and stationEntry.input then
-			local flag2 = false
-			for item,thresh in pairs(bypassSelf.counts) do
-				if train.get_item_count(item) < thresh then
-					flag2 = true
-					break
+		if bypassSelf and bypassSelf.active and controller and stationEntry and stationEntry.input then
+			if controller.type == "item" then
+				local flag2 = false
+				for item,thresh in pairs(bypassSelf.counts) do
+					if train.get_item_count(item) < thresh then
+						flag2 = true
+						break
+					end
 				end
-			end
-			if not flag2 then
-				flag = true
+				if not flag2 then
+					flag = true
+				end
+			elseif controller.type == "fluid" then
+				local flag2 = false
+				for _,car in pairs(entry.cars) do
+					if car.type == "fluid-wagon" then
+						if car.fluidbox == nil or car.fluidbox[1] == nil or (not car.fluidbox[1].valid) or car.fluidbox[1].amount < car.fluidbox.get_capacity(1)*0.75 then
+							flag2 = true
+						end
+					end
+				end
+				if not flag2 then
+					flag = true
+				end
 			end
 		end
 		
