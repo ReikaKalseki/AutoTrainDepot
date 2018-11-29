@@ -98,14 +98,16 @@ end
 
 for i = 1,#ITEM_COUNT_TIERS-1 do
 	local pack = {}
+	local pack3 = false
 	if i >= 4 then
 		if data.raw.tool["logistic-science-pack"] then
 			table.insert(pack, {"logistic-science-pack", 1})
 		else
 			table.insert(pack, {"science-pack-3", 1})
+			pack3 = true
 		end
 	end
-	if i >= 6 then
+	if i >= 6 and not pack3 then
 		table.insert(pack, {"science-pack-3", 1})
 	end
 	if i >= 7 then
