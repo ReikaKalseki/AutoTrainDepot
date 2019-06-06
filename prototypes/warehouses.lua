@@ -13,8 +13,8 @@ if data.raw.container["angels-warehouse"] then
 	local tech2 = table.deepcopy(data.raw.technology["angels-logistic-warehouses"])
 	tech2.name = "bigger-" .. tech2.name
 	tech2.unit.count = math.ceil(tech2.unit.count*1.5)
-	if data.raw.tool["logistic-science-pack"] then
-		table.insert(tech2.unit.ingredients, {"logistic-science-pack", 1})
+	if data.raw.tool["bob-logistic-science-pack"] then
+		table.insert(tech2.unit.ingredients, {"bob-logistic-science-pack", 1})
 	end
 	tech2.prerequisites = {tech.name, "angels-logistic-warehouses", "advanced-electronics"}
 	tech2.effects = {}

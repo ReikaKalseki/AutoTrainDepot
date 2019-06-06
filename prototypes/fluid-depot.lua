@@ -44,7 +44,7 @@ data:extend({
 	name = "depot-fluid-controller",
 	icon = "__AutoTrainDepot__/graphics/icons/depot-controller.png",
 	icon_size = 32,
-    flags = {"goes-to-quickbar"},
+    flags = {},
     subgroup = "storage",
     order = "b[items]-b[depot]",
     place_result = "depot-fluid-controller",
@@ -117,7 +117,7 @@ data:extend({
     icon = "__base__/graphics/icons/constant-combinator.png",
 	icon_size = 32,
     flags = {"placeable-neutral", "player-creation"},
-    minable = {hardness = 0.2, mining_time = 0.5, result = "depot-fluid-controller"},
+    minable = {mining_time = 0.5, result = "depot-fluid-controller"},
     max_health = 100,
     corpse = "small-remnants",
 

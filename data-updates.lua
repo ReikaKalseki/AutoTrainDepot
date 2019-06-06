@@ -2,18 +2,18 @@ require "prototypes.warehouses"
 
 require("prototypes.technology")
 --[[
-if data.raw.tool["logistic-science-pack"] then --cut pack count in half, but add logi packs
+if data.raw.tool["bob-logistic-science-pack"] then --cut pack count in half, but add logi packs
 	data.raw.technology.depot.unit.count = data.raw.technology.depot.unit.count/2
-	table.insert(data.raw.technology.depot.unit.ingredients, {"logistic-science-pack", 1})
+	table.insert(data.raw.technology.depot.unit.ingredients, {"bob-logistic-science-pack", 1})
 	
 	data.raw.technology["fluid-depot"].unit.count = data.raw.technology["fluid-depot"].unit.count/2
-	table.insert(data.raw.technology["fluid-depot"].unit.ingredients, {"logistic-science-pack", 1})
+	table.insert(data.raw.technology["fluid-depot"].unit.ingredients, {"bob-logistic-science-pack", 1})
 	
 	data.raw.technology["depot-base"].unit.count = data.raw.technology["depot-base"].unit.count/2 --halve this too, even though it is not getting any new packs -> keeps the higher techs more expensive than the lower
 	
 	if data.raw.technology.unloader then
 		data.raw.technology.unloader.unit.count = data.raw.technology.unloader.unit.count*3/5
-		table.insert(data.raw.technology.unloader.unit.ingredients, {"logistic-science-pack", 1})
+		table.insert(data.raw.technology.unloader.unit.ingredients, {"bob-logistic-science-pack", 1})
 	end
 end
 --]]

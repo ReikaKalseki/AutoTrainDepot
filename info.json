@@ -5,7 +5,7 @@
   "author": "Reika",
   "contact": "",
   "homepage": "",
-  "factorio_version" : "0.16",
+  "factorio_version" : "0.17",
   "description": "Adds a storage depot controller designed for use in train stations, which can take large quantities of multiple item types and allow for belt-based dynamic train systems.",
-  "dependencies": ["base >= 0.16.0", "? LoaderRedux"]
+  "dependencies": ["base", "DragonIndustries", "? LoaderRedux"]
 }

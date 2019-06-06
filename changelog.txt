@@ -1,4 +1,8 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.180
+Date: Nov 28 2018
+	- Fixed crash due to science pack 3 ingredient duplication
+---------------------------------------------------------------------------------------------------
 Version: 1.0.172
 Date: Oct 20 2018
 	- Added a method to keep a given input to a depot always on - change the condition to the "Always" signal

@@ -44,8 +44,8 @@ reloader.draw_held_item = false
 --reloader.pickup_position = {0, -1.5}
 --reloader.insert_position = {0, 1.7}
 
-reloader.energy_per_movement = 7500/speedFactor*powerConsumption/810 --less in raw value, but given the insane rate of operations... 5000 -> 7500 yields 540kW -> 810kW
-reloader.energy_per_rotation = 7500/speedFactor*powerConsumption/810
+reloader.energy_per_movement = 7500/speedFactor*powerConsumption/810 .. "kJ" --less in raw value, but given the insane rate of operations... 5000 -> 7500 yields 540kW -> 810kW
+reloader.energy_per_rotation = 7500/speedFactor*powerConsumption/810 .. "kJ"
 reloader.energy_source = {
 	type = "electric",
 	usage_priority = "secondary-input",
