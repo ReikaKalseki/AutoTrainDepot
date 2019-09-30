@@ -70,7 +70,7 @@ if data.raw.container["angels-warehouse"] then
 		local item = table.deepcopy(data.raw.item[name])
 		local recipe = table.deepcopy(data.raw.recipe[name])
 		bigger.name = bigger.name .. "-large"
-		if bigger.logistic_slots_count then
+		if bigger.logistic_slots_count and type ~= "storage" then
 			bigger.logistic_slots_count = bigger.logistic_slots_count*2
 		end
 		item.name = bigger.name

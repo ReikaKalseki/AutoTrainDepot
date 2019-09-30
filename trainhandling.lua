@@ -396,14 +396,14 @@ function setTrainGui(depot, player, entity)
 		local container = player.gui.left.add{type = "flow", name = "traingui-container", direction = "horizontal"}
 		local root = container.add{type = "frame", name = "traingui-root", direction = "vertical"}
 		local buttons = container.add{type = "frame", name = "traingui-buttons", direction = "vertical"}
-		buttons.style.align = "center"
+		--NOT VALID IN 0.17--buttons.style.align = "center"
 		root.tooltip = "Train #" .. train
 		--root.title_top_padding = 0
 		--root.title_bottom_padding = 0
 		local header0 = root.add{type = "textfield", name = "traingui-title", text = entry.displayName and entry.displayName or "TrainName"}
 		header0.style.height = 34
 		header0.style.width = 220
-		header0.style.align = "center"
+		--NOT VALID IN 0.17--header0.style.align = "center"
 		local bypass = getTrainBypassSelfData(depot, obj)
 		local header1 = root.add{type = "checkbox", name = "traingui-bypass-toggle", caption = "Skip Fill Depot if Almost Full", state = bypass and bypass.active or false, tooltip = {"depot-gui-tooltip.bypass-toggle"}}
 		local header = root.add{type = "flow", name = "traingui-header"}
@@ -455,12 +455,12 @@ function setTrainGui(depot, player, entity)
 		
 		if obj.schedule and player.force.technologies["depot-cargo-filters"].researched then
 			local button = buttons.add{type = "button", name = "traingui-filters", caption = "Filters", mouse_button_filter = {"left"}}
-			button.style.align = "center"
+			--NOT VALID IN 0.17--button.style.align = "center"
 		end
 		
 		if obj.schedule and player.force.technologies["bypass-beacons"].researched then
 			local button = buttons.add{type = "button", name = "traingui-bypass", caption = "Bypass", mouse_button_filter = {"left"}}
-			button.style.align = "center"
+			--NOT VALID IN 0.17--button.style.align = "center"
 		end
 		
 		if not entry.guis then entry.guis = {} end

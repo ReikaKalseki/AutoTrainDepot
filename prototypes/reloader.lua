@@ -63,6 +63,7 @@ reloader.energy_per_movement = reloader.energy_per_movement/12
 --]]
 
 reloader.fast_replaceable_group = nil
+reloader.next_upgrade = nil
 reloader.working_sound = {
 	match_progress_to_activity = true,
 	sound = {

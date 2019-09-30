@@ -226,7 +226,7 @@ if data.raw.tool["bob-logistic-science-pack"] then
 	data.raw.technology["bypass-beacons"].unit.count = 60
 end
 
-if Config.reloader then
+if Config.reloader and data.raw.loader["fast-loader"] then
 data:extend({
 	{
 		type = "technology",

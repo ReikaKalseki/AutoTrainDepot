@@ -33,6 +33,9 @@ if Config.unloader and data.raw.loader["express-loader"] then
 	item.icon = loader.icon
 	
 	local recipe = table.deepcopy(data.raw.recipe["train-reloader"])
+	if not recipe then 
+		recipe = table.deepcopy(data.raw.recipe["stack-filter-inserter"])
+	end
 	recipe.name = loader.name
 	recipe.result = loader.name
 	recipe.energy_required = 24
