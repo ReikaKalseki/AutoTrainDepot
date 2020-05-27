@@ -4,6 +4,7 @@ if Config.unloader and data.raw.loader["express-loader"] then
 	loader.name = "train-unloader"
 	loader.minable.result = loader.name
 	loader.icon = "__AutoTrainDepot__/graphics/icons/unloader.png"
+	loader.icon_size = 32
 
 	loader.structure.direction_in.sheet.filename = "__AutoTrainDepot__/graphics/entity/unloader.png"
 	loader.structure.direction_out.sheet.filename = "__AutoTrainDepot__/graphics/entity/unloader.png"
@@ -31,6 +32,7 @@ if Config.unloader and data.raw.loader["express-loader"] then
 	item.name = loader.name
 	item.place_result = item.name
 	item.icon = loader.icon
+	item.icon_size = 32
 	
 	local recipe = table.deepcopy(data.raw.recipe["train-reloader"])
 	if not recipe then 
@@ -44,6 +46,8 @@ if Config.unloader and data.raw.loader["express-loader"] then
 			ing[2] = 2
 		end
 	end
+	
+	log("Adding train unloader '" .. recipe.name .. "'")
 
 	data:extend({
 		loader,

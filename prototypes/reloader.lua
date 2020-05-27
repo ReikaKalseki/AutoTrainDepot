@@ -29,6 +29,7 @@ end
 local reloader = table.deepcopy(data.raw.inserter["stack-inserter"])
 reloader.name = "train-reloader"
 reloader.icon = "__AutoTrainDepot__/graphics/icons/reloader.png"
+reloader.icon_size = 32
 reloader.minable.result = "train-reloader"
 reloader.max_health = 450
 reloader.draw_held_item = false
@@ -98,6 +99,7 @@ local item = table.deepcopy(data.raw.item["stack-inserter"])
 item.name = reloader.name
 item.place_result = reloader.name
 item.icon = reloader.icon
+item.icon_size = 32
 
 local recipe = {
 	type = "recipe",

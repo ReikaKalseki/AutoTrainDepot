@@ -267,7 +267,7 @@ data:extend({
 	end
 end
 
-if Config.reloader and data.raw.loader["fast-loader"] then
+if Config.unloader and data.raw.loader["fast-loader"] then
 data:extend({
 	{
 		type = "technology",
