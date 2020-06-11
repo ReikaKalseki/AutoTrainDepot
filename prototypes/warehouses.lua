@@ -6,7 +6,7 @@ if data.raw.container["angels-warehouse"] then
 	local tech = table.deepcopy(data.raw.technology["angels-warehouses"])
 	tech.name = "bigger-" .. tech.name
 	tech.unit.count = tech.unit.count*2
-	table.insert(tech.unit.ingredients, {"science-pack-2", 1})
+	table.insert(tech.unit.ingredients, {"logistic-science-pack", 1})
 	tech.prerequisites = {"angels-warehouses", "advanced-electronics", "logistics-3"}
 	tech.effects = {}
 	
@@ -70,7 +70,7 @@ if data.raw.container["angels-warehouse"] then
 		local item = table.deepcopy(data.raw.item[name])
 		local recipe = table.deepcopy(data.raw.recipe[name])
 		bigger.name = bigger.name .. "-large"
-		if bigger.logistic_slots_count and type ~= "storage" then
+		if bigger.logistic_slots_count and type ~= "-storage" then
 			bigger.logistic_slots_count = bigger.logistic_slots_count*2
 		end
 		item.name = bigger.name

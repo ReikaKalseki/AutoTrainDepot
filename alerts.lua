@@ -21,7 +21,7 @@ local function isTrainUnfueled(train)
 end
 
 local functionIDs = {
-	["nofuel"] = isTrainUnfueled,
+	--["nofuel"] = isTrainUnfueled,
 	["nopath"] = function(train) return train.state == defines.train_state.no_path end,
 	["deadlock"] = function(train) return train.state == defines.train_state.wait_signal end,
 }
@@ -38,9 +38,9 @@ local function playAlert(depot, force, alert, tag, train, from, to, sound)
 end
 
 local function getFunction(alert)
-	if alert == "nofuel" then
-		return isTrainUnfueled
-	elseif alert == "nopath" then
+	--if alert == "nofuel" then
+	--	return isTrainUnfueled
+	if alert == "nopath" then
 		return function(train) return train.state == defines.train_state.no_path end
 	elseif alert == "deadlock" then
 		return function(train) return train.state == defines.train_state.wait_signal end
@@ -81,10 +81,10 @@ function checkTrainAlerts(depot, tick, force)
 	--game.print(force.name .. " > " .. #force.get_trains(game.surfaces["nauvis"]))
 	for _,train in pairs(force.get_trains(game.surfaces["nauvis"])) do
 		--game.print(train.id)
-		if isTrainUnfueled(train) then
-			raiseTrainAlert(depot, force, train, "nofuel", (not fired))
-			fired = true
-		elseif train.state == defines.train_state.no_path then
+		--if isTrainUnfueled(train) then
+		--	raiseTrainAlert(depot, force, train, "nofuel", (not fired))
+		--	fired = true
+		if train.state == defines.train_state.no_path then
 			raiseTrainAlert(depot, force, train, "nopath", (not fired))
 			fired = true
 		elseif train.state == defines.train_state.wait_signal then
