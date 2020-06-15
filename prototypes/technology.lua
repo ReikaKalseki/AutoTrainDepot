@@ -45,7 +45,7 @@ local function createTech(name, deps, packs, count)
 		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-wagon-slot", tostring(WAGON_SLOT_TIERS[lvl])}})
 	elseif name == "depot-base" then
 		table.insert(effects, {type = "unlock-recipe", recipe = "depot-controller"})
-		table.insert(effects, {type = "unlock-recipe", recipe = "smart-train-stop"})
+		table.insert(effects, {type = "unlock-recipe", recipe = "depot-stop"})
 		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-item-count", tostring(ITEM_COUNT_TIERS[1])}})
 	else
 		table.insert(deps, "depot-base")
@@ -143,17 +143,14 @@ end
 
 for i = 1,#WAGON_SLOT_TIERS do
 	local pack = {}
-	if i >= 4 and data.raw.tool["bob-logistic-science-pack"] then
+	if i >= 5 and data.raw.tool["bob-logistic-science-pack"] then
 		table.insert(pack, {"bob-logistic-science-pack", 1})
 	end
-	if i >= 3 then
+	if i >= 4 then
 		table.insert(pack, {"chemical-science-pack", 1})
 	end
-	if i >= 5 then
-		table.insert(pack, {"utility-science-pack", 1})
-	end
 	if i >= 6 then
-		table.insert(pack, {"space-science-pack", 1})
+		table.insert(pack, {"utility-science-pack", 1})
 	end
 	local dep = {}
 	if i == 4 then
@@ -228,9 +225,6 @@ data:extend({
 		order = "[railway]-3",
 		icon_size = 128,
 	},
-})
-
-data:extend({
 	{
 		type = "technology",
 		name = "bypass-beacons",
@@ -261,11 +255,46 @@ data:extend({
 		order = "[logistics]-3",
 		icon_size = 128,
 	},
+	{
+		type = "technology",
+		name = "smart-train-stop",
+		prerequisites =
+		{
+			"depot-base",
+			"logistics-3",
+			"rail-signals",
+			"advanced-electronics",
+		},
+		icon = "__AutoTrainDepot__/graphics/technology/smart-train-stop.png",
+		effects =
+		{
+			{
+				type = "unlock-recipe",
+				recipe = "smart-train-stop"
+			}
+		},
+		unit =
+		{
+		  count = 100,
+		  ingredients =
+		  {
+			{"automation-science-pack", 1},
+			{"logistic-science-pack", 1},
+		  },
+		  time = 30
+		},
+		order = "[logistics]-3",
+		icon_size = 128,
+	},
 })
 
 if data.raw.tool["bob-logistic-science-pack"] then
 	table.insert(data.raw.technology["bypass-beacons"].unit.ingredients, {"bob-logistic-science-pack", 1})
 	data.raw.technology["bypass-beacons"].unit.count = 60
+end
+
+if data.raw.technology["zinc-processing"] then
+	table.insert(data.raw.technology["smart-train-stop"].prerequisites, {"zinc-processing"})
 end
 
 if Config.reloader and data.raw.loader["fast-loader"] then

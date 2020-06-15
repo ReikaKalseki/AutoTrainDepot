@@ -258,7 +258,7 @@ local function checkEntityConnections(depot, ret, check, wire, path)
 			local entry = {entity = entity, wire = wire}
 			if entity.type == "container" or entity.type == "logistic-container" then
 				entry.type = "storage"
-			elseif entity.type == "train-stop" then
+			elseif entity.name == "depot-stop" then
 				entry.type = "station"
 			end
 			if entry.type then
@@ -532,12 +532,15 @@ function setTrainFiltersForTrain(depot, entry, train, station)
 					--game.print("Checking car #" .. car.index .. ": " .. car.type)
 					local data = getTrainCarIOData(depot, train, car.index)
 					local wagon = train.carriages[idx]
+					local inv = wagon.get_inventory(defines.inventory.cargo_wagon)
 					if data.autoControl then
 						if data.shouldFill then
-							wagon.get_inventory(defines.inventory.cargo_wagon).set_bar(1+getMaxSlotsForWagon(depot, entry, train, station, wagon))
+							inv.set_bar(1+getMaxSlotsForWagon(depot, entry, train, station, wagon))
 						else
-							wagon.get_inventory(defines.inventory.cargo_wagon).set_bar(1)
+							inv.set_bar(1)
 						end
+					else --this is necessary to not allow not-marking-for-auto the wagon to bypass limits
+						inv.set_bar(1+getMaxSlotsForWagon(depot, entry, train, station, wagon))
 					end
 				end
 			end
@@ -552,6 +555,7 @@ function setTrainFiltersForTrainNonDepot(depot, entry, train)
 		if car.type == "cargo-wagon" then
 			local data = getTrainCarIOData(depot, train, car.index)
 			if data.autoControl then
+				--game.print(serpent.block(train.station))
 				if train.station or train.state == defines.train_state.manual_control then
 					train.carriages[idx].get_inventory(defines.inventory.cargo_wagon).set_bar()
 				else

@@ -69,6 +69,28 @@ script.on_init(function()
 	initGlobal(true)
 end)
 
+local function removeTrainStopFromCache(entity)
+	local depot = global.depot
+	depot.stationToDepot[entity.unit_number] = nil
+	depot.stationToDepot[entity.backer_name] = nil
+	--game.print("Removing station " .. entity.backer_name)
+	for _,entry in pairs(global.depot.entries) do
+		--log(serpent.block(entry))
+		if entry.stations then
+			entry.stations[entity.backer_name] = nil
+		end
+	end
+	local key = entity.position.x .. "/" .. entity.position.y
+	local val = {}
+	for _,train in pairs(entity.get_train_stop_trains()) do
+		val[train.id] = true
+	end
+	if #entity.get_train_stop_trains() > 0 then
+		if not depot.stopReplacement then depot.stopReplacement = {} end
+		depot.stopReplacement[key] = {old = entity.backer_name, trains = val, age = game.tick}
+	end
+end
+
 local function checkEntityConnections(entity, wire)
 	local net = entity.circuit_connected_entities
 	local clr = wire == defines.wire_type.red and "red" or "green"
@@ -211,17 +233,8 @@ local function onEntityRemoved(entity)
 				end
 			end
 		end
-	elseif entity.name == "train-stop" then
-		local depot = global.depot
-		local key = entity.position.x .. "/" .. entity.position.y
-		local val = {}
-		for _,train in pairs(entity.get_train_stop_trains()) do
-			val[train.id] = true
-		end
-		if #entity.get_train_stop_trains() > 0 then
-			if not depot.stopReplacement then depot.stopReplacement = {} end
-			depot.stopReplacement[key] = {old = entity.backer_name, trains = val, age = game.tick}
-		end
+	elseif entity.type == "train-stop" then
+		removeTrainStopFromCache(entity)
 	elseif entity.name == "station-bypass-beacon" then
 		local depot = global.depot
 		depot.pendingBypasses[entity.unit_number] = nil
@@ -279,8 +292,12 @@ local function handleTrainStateChange(train)
 			if controller and controller.type == "item" then
 				--game.print("Unit " .. controller .. " from " .. name .. " > " .. serpent.block(depot.entries[controller]))
 				--game.print("Train " .. entry.displayName .. " is stopping at a depot station " .. name)
-				if not stationEntry then error("Station " .. name .. " is mapped to depot " .. controller.controller.unit_number .. " yet that depot has no such station entry?! " .. serpent.block(controller.stations)) end
-				setTrainFiltersForTrain(depot, controller, train, stationEntry)
+				if stationEntry then
+					setTrainFiltersForTrain(depot, controller, train, stationEntry)
+				else
+					log(serpent.block(controller.stations))
+					game.print("Station " .. name .. " is mapped to depot " .. controller.controller.unit_number .. " yet that depot has no such station entry?!")
+				end
 			else
 				setTrainFiltersForTrainNonDepot(depot, entry, train)
 			end
@@ -430,3 +447,18 @@ end)
 script.on_event(defines.events.on_entity_settings_pasted, function(event)
 	onEntityCopyPaste(event)
 end)
+
+local function addCommands()
+	commands.add_command("unDepot", {"cmd.un-depot-help"}, function(event)
+		local count = 0
+		local player = game.players[event.player_index]
+		local e = player.selected
+		if e and e.type == "train-stop" then
+			removeTrainStopFromCache(e)
+			game.print("ATD: Removing stop '" .. e.backer_name .. "' from all depots.")
+			log(serpent.block(global.depot.entries))
+		end
+	end)
+end
+
+addCommands()

@@ -31,19 +31,29 @@ local function createSignal(name)
 	}
 end
 
-local stop = table.deepcopy(data.raw["train-stop"]["train-stop"])
-stop.name = "smart-train-stop"
-stop.minable.result = stop.name
-stop.fast_replaceable_group = "train-stop"
-data.raw["train-stop"]["train-stop"].fast_replaceable_group = stop.fast_replaceable_group
+data.raw["train-stop"]["train-stop"].fast_replaceable_group = "train-stop"
 
-local item = table.deepcopy(data.raw.item["train-stop"])
-item.name = stop.name
-item.place_result = stop.name
+local stop = copyObject("train-stop", "train-stop", "smart-train-stop")
+stop.circuit_wire_max_distance = stop.circuit_wire_max_distance*2
+stop.color={r=0.95,  g=0, b=0.95, a=0.5}
+stop.fast_replaceable_group = "train-stop"
+
+local depotstop = copyObject("train-stop", "train-stop", "depot-stop")
+depotstop.circuit_wire_max_distance = stop.circuit_wire_max_distance*2
+depotstop.color={r=0,  g=0, b=0.95, a=0.5}
+depotstop.fast_replaceable_group = "train-stop"
+
+local item = copyObject("item", "train-stop", "depot-stop")
+local depotstopitem = copyObject("item", "train-stop", "depot-stop")
+depotstopitem.icon = "__AutoTrainDepot__/graphics/icons/depotstop.png"
+depotstopitem.icon_size = 32
+depotstopitem.icon_mipmaps = 0
 
 data:extend({
 	stop,
 	item,
+	depotstop,
+	depotstopitem,
 	{
 		type = "recipe",
 		name = stop.name,
@@ -56,6 +66,20 @@ data:extend({
 			{"red-wire", 4}
 		},
 		result = stop.name
+	},
+	{
+		type = "recipe",
+		name = depotstop.name,
+		energy_required = 4,
+		enabled = false,
+		--category = "crafting",
+		ingredients = {
+			{"train-stop", 1},
+			{"electronic-circuit", 60},
+			{"red-wire", 30},
+			{"rail-signal", 15},
+		},
+		result = depotstop.name
 	},
 	createSignal("train-ingredients-full"),
 	createSignal("train-ingredients-empty"),
