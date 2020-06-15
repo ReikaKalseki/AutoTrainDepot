@@ -92,7 +92,7 @@ function checkTrainAlerts(depot, tick, force)
 			if depot.trainPosCache[train.id] and depot.trainPosCache[train.id].since then
 				if depot.trainPosCache[train.id].x == pos.x and depot.trainPosCache[train.id].y == pos.y then
 					--game.print("Train " .. train.id .. " has not moved in " .. (tick-depot.trainPosCache[train.id].since))
-					if tick-depot.trainPosCache[train.id].since > 7200 then --at signal, has not moved in 2 minutes -> must be deadlocked
+					if tick-depot.trainPosCache[train.id].since > 7200*5 then --at signal, has not moved in 2 minutes -> must be deadlocked -> very bad assumption
 						raiseTrainAlert(depot, force, train, "deadlock", (not fired))
 						fired = true
 					end

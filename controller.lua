@@ -189,9 +189,10 @@ local function setInputItem(depot, input, item)
 		
 			input.item = item
 			
-			--if input.entity.name == "dynamic-train-unloader" then
+			if input.entity.filter_slot_count > 0 then
+				--game.print(input.entity.name)
 				input.entity.set_filter(1, item)
-			--end
+			end
 		end
 		
 		local val = getInputThreshold(depot, input.item)
@@ -494,6 +495,25 @@ local function countFreeSlots(cache, chest)
 	return free
 end
 
+local function getMaxSlotsForWagon(depot, entry, train, station, wagon)
+	local force = nil
+	if entry.controller then
+		--error(serpent.block(entry))
+		force = entry.controller.force
+	else
+		force = wagon.force
+	end
+	if not force then error("No force for train/depot!") end
+	for i = #WAGON_SLOT_TIERS,1,-1 do
+		local tech = force.technologies["depot-wagon-slot-" .. i]
+		if not tech then error("No such tech index: depot-wagon-slot-" .. i) end
+		if tech.researched then
+			return WAGON_SLOT_TIERS[i]
+		end
+	end
+	return 1
+end
+
 local function manageLoopFeeds(depot) --too laggy
 	local cache = {}
 	for _,loop in pairs(depot.loopFeeds) do
@@ -514,9 +534,9 @@ function setTrainFiltersForTrain(depot, entry, train, station)
 					local wagon = train.carriages[idx]
 					if data.autoControl then
 						if data.shouldFill then
-							wagon.get_inventory(defines.inventory.cargo_wagon).setbar()
+							wagon.get_inventory(defines.inventory.cargo_wagon).set_bar(1+getMaxSlotsForWagon(depot, entry, train, station, wagon))
 						else
-							wagon.get_inventory(defines.inventory.cargo_wagon).setbar(1)
+							wagon.get_inventory(defines.inventory.cargo_wagon).set_bar(1)
 						end
 					end
 				end
@@ -533,9 +553,9 @@ function setTrainFiltersForTrainNonDepot(depot, entry, train)
 			local data = getTrainCarIOData(depot, train, car.index)
 			if data.autoControl then
 				if train.station or train.state == defines.train_state.manual_control then
-					train.carriages[idx].get_inventory(defines.inventory.cargo_wagon).setbar()
+					train.carriages[idx].get_inventory(defines.inventory.cargo_wagon).set_bar()
 				else
-					train.carriages[idx].get_inventory(defines.inventory.cargo_wagon).setbar(1)
+					train.carriages[idx].get_inventory(defines.inventory.cargo_wagon).set_bar(1)
 				end
 			end
 		end

@@ -1,7 +1,13 @@
 require "config"
 require "constants"
 
+require "__DragonIndustries__.tech"
+require "__DragonIndustries__.mathhelper"
+
 local function createTech(name, deps, packs, count)
+	for _,pack in pairs(packs) do
+		table.insert(deps, getPrereqTechForPack(pack))
+	end
 	table.insert(packs, {"automation-science-pack", 1})
 	table.insert(packs, {"logistic-science-pack", 1})
 	local effects = {}
@@ -27,6 +33,16 @@ local function createTech(name, deps, packs, count)
 		end
 		upgrade = true
 		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-item-count", tostring(ITEM_COUNT_TIERS[lvl+1])}})
+	elseif string.find(name, "wagon-slot", 1, true) then
+		ico = "__AutoTrainDepot__/graphics/technology/depot-wagon-slot.png"
+		if lvl == 1 then
+			table.insert(deps, "depot-base")
+		else
+			table.insert(deps, "depot-wagon-slot-" .. (lvl-1))
+		end
+		table.insert(deps, "depot-wagon-item-count-" .. math.ceil(lvl/2))
+		upgrade = true
+		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-wagon-slot", tostring(WAGON_SLOT_TIERS[lvl])}})
 	elseif name == "depot-base" then
 		table.insert(effects, {type = "unlock-recipe", recipe = "depot-controller"})
 		table.insert(effects, {type = "unlock-recipe", recipe = "smart-train-stop"})
@@ -61,7 +77,7 @@ local function createTech(name, deps, packs, count)
 		upgrade = upgrade,
 		unit =
 		{
-		  count = count,
+		  count = roundToNearest(count, 25),
 		  ingredients = packs,
 		  time = 30
 		},
@@ -72,28 +88,27 @@ local function createTech(name, deps, packs, count)
 end
 
 createTech("depot-base", {"automated-rail-transportation", "circuit-network", "automation-2", "logistics-2", "alloy-processing-1"}, {}, 150)
-createTech("depot-fluid", {"fluid-handling", "advanced-electronics", "nickel-processing"}, {}, 200)
+createTech("depot-fluid", {"fluid-handling", "advanced-electronics", "nickel-processing", "logistics-3"}, {{"chemical-science-pack", 1}}, 200)
 createTech("depot-redbar-control", {"optics"}, {}, 50)
 createTech("depot-inserter-cleaning", {"more-inserters-1"}, {}, 25)
-createTech("depot-balancing", {"automation-3", "fast-loader"}, {{"chemical-science-pack", 1}}, 200)
-createTech("depot-dynamic-filters", {"automation-3", "optics"}, {{"chemical-science-pack", 1}}, 80)
-createTech("depot-cargo-filters", {"automation-3"}, {}, 100)
+createTech("depot-balancing", {"fast-loader"}, {}, 200)
+createTech("depot-dynamic-filters", {"optics"}, {}, 80)
+createTech("depot-cargo-filters", {}, {}, 100)
 
 for i = 2,6 do
-	local pack = {}
+	local pack = {{"chemical-science-pack", 1}}
 	local pack3 = false
 	if i >= 5 then
 		if data.raw.tool["bob-logistic-science-pack"] then
 			table.insert(pack, {"bob-logistic-science-pack", 1})
 		else
-			table.insert(pack, {"chemical-science-pack", 1})
-			pack3 = true
+
 		end
 	end
-	if i >= 6 and not pack3 then
-		table.insert(pack, {"chemical-science-pack", 1})
+	if i >= 6 then
+		table.insert(pack, {"utility-science-pack", 1})
 	end
-	createTech("depot-fluid-count-" .. i, i == 5 and {"logistics-3"} or {}, pack, math.floor((30*(1.5^(i-1)))/5)*5)
+	createTech("depot-fluid-count-" .. i, {}, pack, math.floor((30*(1.5^(i-1)))/5)*5)
 end
 
 for i = 1,#ITEM_COUNT_TIERS-1 do
@@ -124,6 +139,33 @@ for i = 1,#ITEM_COUNT_TIERS-1 do
 		table.insert(dep, "bob-logistics-5")
 	end
 	createTech("depot-item-count-" .. i, dep, pack, 50*2^i)
+end
+
+for i = 1,#WAGON_SLOT_TIERS do
+	local pack = {}
+	if i >= 4 and data.raw.tool["bob-logistic-science-pack"] then
+		table.insert(pack, {"bob-logistic-science-pack", 1})
+	end
+	if i >= 3 then
+		table.insert(pack, {"chemical-science-pack", 1})
+	end
+	if i >= 5 then
+		table.insert(pack, {"utility-science-pack", 1})
+	end
+	if i >= 6 then
+		table.insert(pack, {"space-science-pack", 1})
+	end
+	local dep = {}
+	if i == 4 then
+		table.insert(dep, "logistics-3")
+	end
+	if i == 5 then
+		table.insert(dep, "bob-logistics-4")
+	end
+	if i == 6 then
+		table.insert(dep, "bob-logistics-5")
+	end
+	createTech("depot-wagon-slot-" .. i, dep, pack, 10*5^(i/2))
 end
 
 --[[
