@@ -3,12 +3,19 @@ require "constants"
 require "trainhandling"
 require "belthandling"
 
+require "__DragonIndustries__.items"
+
 local balanceRate = 240 --4s
 local balanceRateNoTrain = 600*3 --30s
 
 local function isPowerAvailable(force, power)
 	--game.print("Checking power " .. power .. ": " .. (force.technologies["depot-" .. power].researched and "has" or "no"))
-	return force.technologies["depot-" .. power].researched
+	local tech = force.technologies["depot-" .. power]
+	return tech and tech.researched
+end
+
+local function getSlotsForType(depot, item)
+	return depot.slotsPerType[item]
 end
 
 local function getControllableItemTypes(force)
@@ -20,7 +27,7 @@ local function getControllableItemTypes(force)
 end
 
 local function getInputThreshold(depot, item)
-	return math.floor((depot.slotsPerType-0.1)*game.item_prototypes[item].stack_size) --the slight reduction is to ensure does not spill over due to latency; some still inbound
+	return math.floor((getSlotsForType(depot, item)-0.1)*game.item_prototypes[item].stack_size) --the slight reduction is to ensure does not spill over due to latency; some still inbound
 end
 
 local function getLoopFedStorages(depot, entity)
@@ -215,22 +222,45 @@ local function getCombinatorOutput(entity)
 	return ret and math.max(1, ret.count) or 1
 end
 
-local function setTypeLimit(depot, cats)
-	depot.typeLimit = cats
-	depot.slotsPerType = math.max(1, math.floor(depot.slotCount/cats))
-	if depot.inputs then
-		for unit,input in pairs(depot.inputs) do
-			setInputItem(depot, input, input.item)
+local function getMaxSlotsAllowed(entry)
+	for i = #SLOT_COUNT_TIERS,1,-1 do
+		local tech = entry.controller.force.technologies["depot-item-slot-" .. i]
+		if not tech then error("No such tech index: depot-item-slot-" .. i) end
+		if tech.researched then
+			return SLOT_COUNT_TIERS[i]
 		end
 	end
-	--game.print("Set controller (linked to " .. depot.storageCount .. " storages totalling " .. depot.slotCount .. " slots) with " .. cats .. " divisions -> " .. depot.slotsPerType .. " slots per type")
+	return 1
 end
 
-local function updateTypeLimit(depot)
-	local cats = getCombinatorOutput(depot.controller)
+local function calculateTypeLimits(entry)
+	local maxtypes = entry.typeLimit
+	local maxslots = getMaxSlotsAllowed(entry)
+	if isPowerAvailable(entry.controller.force, "category-limits") then
+		local cat = getFractionCategoryForItem(item)
+		local frac = CATEGORY_FRACTIONS[cat]
+		local slots = math.min(maxslots, math.max(1, math.floor(entry.slotCount*frac/maxtypes)))
+	else
+		return math.min(maxslots, math.max(1, math.floor(entry.slotCount/maxtypes)))
+	end
+end
+
+local function setTypeLimit(entry, cats)
+	entry.typeLimit = cats
+	calculateTypeLimits(entry)
+	if entry.inputs then
+		for unit,input in pairs(entry.inputs) do
+			setInputItem(entry, input, input.item)
+		end
+	end
+	--game.print("Set controller (linked to " .. entry.storageCount .. " storages totalling " .. entry.slotCount .. " slots) with " .. cats .. " divisions -> " .. entry.slotsPerType .. " slots per type")
+end
+
+local function updateTypeLimit(entry)
+	local cats = getCombinatorOutput(entry.controller)
 	--game.print("Combinator reads " .. cats)
-	if cats ~= depot.typeLimit then
-		setTypeLimit(depot, cats)
+	if cats ~= entry.typeLimit then
+		setTypeLimit(entry, cats)
 	end
 end
 

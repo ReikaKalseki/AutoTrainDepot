@@ -33,6 +33,15 @@ local function createTech(name, deps, packs, count)
 		end
 		upgrade = true
 		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-item-count", tostring(ITEM_COUNT_TIERS[lvl+1])}})
+	elseif string.find(name, "item-slots", 1, true) then
+		ico = "__AutoTrainDepot__/graphics/technology/depot-items.png"
+		if lvl == 1 then
+			table.insert(deps, "depot-base")
+		else
+			table.insert(deps, "depot-item-slots-" .. (lvl-1))
+		end
+		upgrade = true
+		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-item-slots", tostring(SLOT_COUNT_TIERS[lvl])}})
 	elseif string.find(name, "wagon-slot", 1, true) then
 		ico = "__AutoTrainDepot__/graphics/technology/depot-wagon-slot.png"
 		if lvl == 1 then
@@ -94,6 +103,7 @@ createTech("depot-inserter-cleaning", {"more-inserters-1"}, {}, 25)
 createTech("depot-balancing", {"fast-loader"}, {}, 200)
 createTech("depot-dynamic-filters", {"optics"}, {}, 80)
 createTech("depot-cargo-filters", {}, {}, 100)
+--createTech("depot-category-limits", {"advanced-electronics"}, {{"chemical-science-pack", 1}}, 100)
 
 for i = 2,6 do
 	local pack = {{"chemical-science-pack", 1}}
@@ -139,6 +149,39 @@ for i = 1,#ITEM_COUNT_TIERS-1 do
 		table.insert(dep, "bob-logistics-5")
 	end
 	createTech("depot-item-count-" .. i, dep, pack, 50*2^i)
+end
+
+for i = 1,#SLOT_COUNT_TIERS do
+	local pack = {}
+	local pack3 = false
+	if i >= 4 then
+		if data.raw.tool["bob-logistic-science-pack"] then
+			table.insert(pack, {"bob-logistic-science-pack", 1})
+		else
+			table.insert(pack, {"chemical-science-pack", 1})
+			pack3 = true
+		end
+	end
+	if i >= 5 and not pack3 then
+		table.insert(pack, {"chemical-science-pack", 1})
+	end
+	if i >= 6 then
+		table.insert(pack, {"utility-science-pack", 1})
+	end
+	if i >= 7 then
+		table.insert(pack, {"space-science-pack", 1})
+	end
+	local dep = {}
+	if i == 5 then
+		table.insert(dep, "logistics-3")
+	end
+	if i == 6 then
+		table.insert(dep, "bob-logistics-4")
+	end
+	if i == 7 then
+		table.insert(dep, "bob-logistics-5")
+	end
+	createTech("depot-item-slots-" .. i, dep, pack, 25*2^(i*1.2))
 end
 
 for i = 1,#WAGON_SLOT_TIERS do
