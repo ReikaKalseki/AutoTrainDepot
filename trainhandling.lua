@@ -665,3 +665,126 @@ function handleTrainModification(new, old1, old2)
 		end
 	end
 end
+
+function handleTrainStateChange(train)
+	if #train.carriages == 0 then return end
+	local depot = global.depot
+	local force = train.carriages[1].force
+	local entry = getOrCreateTrainEntryByTrain(depot, train)
+	local stationIndex = train.schedule and train.schedule.current or nil
+	local name = stationIndex and train.schedule.records[stationIndex].station or nil
+	local controller = name and depot.stationToDepot and depot.stationToDepot[name] or nil
+	controller = controller and depot.entries[controller] or nil
+	local stationEntry = controller and controller.stations[name] or nil
+	if train.state == defines.train_state.arrive_station or train.state == defines.train_state.wait_station then
+		if force.technologies["depot-redbar-control"].researched then
+			if controller and controller.type == "item" then
+				--game.print("Unit " .. controller .. " from " .. name .. " > " .. serpent.block(depot.entries[controller]))
+				--game.print("Train " .. entry.displayName .. " is stopping at a depot station " .. name)
+				if stationEntry then
+					setTrainFiltersForTrain(depot, controller, train, stationEntry)
+				else
+					log(serpent.block(controller.stations))
+					game.print("Station " .. name .. " is mapped to depot " .. controller.controller.unit_number .. " yet that depot has no such station entry?!")
+				end
+			else
+				setTrainFiltersForTrainNonDepot(depot, entry, train)
+			end
+		end
+		if force.technologies["depot-cargo-filters"].researched then
+			local filters = getTrainItemFilterData(depot, train)
+			if filters then
+				for _,car in pairs(entry.cars) do
+					if car.type == "cargo-wagon" and filters[car.index] then
+						local entity = train.carriages[car.position]
+						local filter = filters[car.index][stationIndex]
+						local inv = entity.get_inventory(defines.inventory.cargo_wagon)
+						if inv and filter ~= "skip-filter-swap" then
+							for i = 1,#inv do
+								if filter == nil or filter == "nil" then
+									inv.set_filter(i, nil)
+								else
+									inv.set_filter(i, filter)
+								end
+							end
+							--force.print("Setting filters on train " .. entry.displayName .. " car " .. car.index .. " to " .. (filter and filter or "nil") .. " for station " .. train.schedule.records[stationIndex].station)
+						end
+					end
+				end
+			end
+		end
+	elseif train.state == defines.train_state.on_the_path then --just started moving
+		local station = train.schedule.current
+		local name = train.schedule.records[station].station
+		local bypassSelf = getTrainBypassSelfData(depot, train)
+		local bypass = getTrainBypassData(depot, train, station)
+		local entity = depot.bypassBeacons and depot.bypassBeacons[name] or nil
+		
+		local flag = false
+		
+		if bypassSelf and bypassSelf.active and controller and stationEntry and stationEntry.input then
+			if controller.type == "item" then
+				local flag2 = false
+				for item,thresh in pairs(bypassSelf.counts) do
+					if train.get_item_count(item) < thresh then
+						flag2 = true
+						break
+					end
+				end
+				if not flag2 then
+					flag = true
+				end
+			elseif controller.type == "fluid" then
+				local flag2 = false
+				for _,car in pairs(entry.cars) do
+					if car.type == "fluid-wagon" then
+						if car.fluidbox == nil or car.fluidbox[1] == nil or (not car.fluidbox[1].valid) or car.fluidbox[1].amount < car.fluidbox.get_capacity(1)*0.75 then
+							flag2 = true
+						end
+					end
+				end
+				if not flag2 then
+					flag = true
+				end
+			end
+		end
+		
+		if bypass and entity and (not flag) then
+			local network = entity.get_circuit_network(defines.wire_type.red)
+			if network then
+				local signals = network.signals
+				if signals and #signals > 0 then
+					for _,signal in pairs(signals) do
+						if signal.signal.name == bypass.name and signal.signal.type == bypass.type and signal.count > 0 then
+							flag = true
+							break
+						end
+					end
+				end
+			end
+			if not flag then
+				network = entity.get_circuit_network(defines.wire_type.green)
+				if network then
+				local signals = network.signals
+					if signals and #signals > 0 then
+						for _,signal in pairs(signals) do
+							if signal.signal.name == bypass.name and signal.signal.type == bypass.type and signal.count > 0 then
+								flag = true
+								break
+							end
+						end
+					end
+				end
+			end
+		end
+		if flag then
+			local data = train.schedule
+			data.current = data.current+1
+			if data.current > #data.records then
+				data.current = 1
+			end
+			train.schedule = data
+			handleTrainStateChange(train) --call recursively in case the next station also needs to be skipped
+		end
+	end
+end

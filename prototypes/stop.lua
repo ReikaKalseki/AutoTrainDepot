@@ -38,12 +38,16 @@ stop.circuit_wire_max_distance = stop.circuit_wire_max_distance*2
 stop.color={r=0.95,  g=0, b=0.95, a=0.5}
 stop.fast_replaceable_group = "train-stop"
 
+local item = copyObject("item", "train-stop", "smart-train-stop")
+item.icon = "__AutoTrainDepot__/graphics/icons/smartstop.png"
+item.icon_size = 32
+item.icon_mipmaps = 0
+
 local depotstop = copyObject("train-stop", "train-stop", "depot-stop")
 depotstop.circuit_wire_max_distance = stop.circuit_wire_max_distance*2
 depotstop.color={r=0,  g=0, b=0.95, a=0.5}
 depotstop.fast_replaceable_group = "train-stop"
 
-local item = copyObject("item", "train-stop", "depot-stop")
 local depotstopitem = copyObject("item", "train-stop", "depot-stop")
 depotstopitem.icon = "__AutoTrainDepot__/graphics/icons/depotstop.png"
 depotstopitem.icon_size = 32

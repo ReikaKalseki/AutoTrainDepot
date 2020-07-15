@@ -31,4 +31,10 @@ data:extend({
 		order = name,
 		hidden = true,
 	},
+	{
+		type = "sprite",
+		name = "depot-withdraw",
+		filename = "__AutoTrainDepot__/graphics/icons/depot-withdraw-small.png",
+		size = 20,
+	},
 })
