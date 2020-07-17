@@ -179,7 +179,7 @@ local function setTrainCarFilterData(depot, train, car, options, toggles)
 	local slot = -1
 	local data = {}
 	for i,elem in pairs(options) do
-		if elem.state then
+		if elem.children[1].state then
 			slot = i
 			break
 		end
@@ -234,9 +234,9 @@ function handleTrainGUIState(event)
 		local idx = tonumber(ending)
 		local car = tonumber(pref)
 		--game.print("Setting button " .. idx .. " for car " .. car)
-		for _,elem in pairs(event.element.parent.children) do
-			if elem ~= event.element then
-				elem.state = false
+		for _,elem in pairs(event.element.parent.parent.children) do
+			if elem.children[1] ~= event.element then
+				elem.children[1].state = false
 			end
 		end
 	end
@@ -408,14 +408,16 @@ function setTrainGui(depot, player, entity)
 		local header1 = root.add{type = "checkbox", name = "traingui-bypass-toggle", caption = "Skip Fill Depot if Almost Full", state = bypass and bypass.active or false, tooltip = {"depot-gui-tooltip.bypass-toggle"}}
 		local header = root.add{type = "flow", name = "traingui-header"}
 		header.style.height = 24
-		local spacer = header.add{type = "sprite", name = "traingui-header-spacer", "utility/empty"}
-		spacer.style.width = 1
+		local spacer = header.add{type = "label", name = "traingui-header-spacer", caption = "Per-Car Controls:"}
+		spacer.style = "caption_label"
+		--spacer.style.width = 1
+		--[[
 		for i = 1,7 do --7, not 6; slot 7 is "inactive"
 			--local box = header.add{type = "sprite", name = "traingui-header-" .. i, sprite = i == 7 and "utility/clear" or ("virtual-signal/signal-" .. i)}
 			local box = header.add{type = "sprite", name = "traingui-header-" .. i, sprite = i == 7 and "traingui-header-no" or "traingui-header-" .. i}
 			box.style.width = 24
 			box.tooltip = i == 7 and "No connection" or ("Fluid Type " .. i)
-		end
+		end--]]
 		for _,car in pairs(entry.cars) do
 			local gui = nil
 			local id = "traingui-" .. car.type .. "-" .. car.index
@@ -426,21 +428,46 @@ function setTrainGui(depot, player, entity)
 				gui = line.add{type = "frame", name = id}
 				gui.style.height = 30 --24 for flow, 30 for frame
 				local data,data2 = getTrainCarFilterData(depot, obj, car.index)
+				gui.style.vertical_align = "center"
 				--game.print("Creating GUI for car " .. car.index .. ", data = " .. (data and data or "nil"))
+				gui.style.left_padding = 0
+				gui.style.right_padding = 0
 				for i = 1,7 do --7, not 6; slot 7 is "inactive"
-					gui.add{type = "radiobutton", name = id .. "-button-" .. i, state = i == data}
+					local box = gui.add{type = "sprite", name = "traingui-header-" .. i, sprite = i == 7 and "traingui-header-no" or "traingui-header-" .. i}
+					box.style.vertical_align = "center"
+					box.style.horizontal_align = "center"
+					box.style.left_padding = i == 0 and 0 or 5
+					box.style.right_padding = i == 7 and 0 or 5
+					box.style.left_margin = 0
+					box.style.right_margin = 0
+					--box.style.width = 24
+					box.tooltip = i == 7 and "No connection" or ("Fluid Type " .. i)
+					local btn = box.add{type = "radiobutton", name = id .. "-button-" .. i, state = i == data}
+					btn.style.vertical_align = "center"
+					btn.style.left_margin = 0
+					btn.style.right_margin = 0
+					btn.style.top_margin = 0
+					box.style.left_padding = i == 0 and 0 or 4
+					box.style.right_padding = i == 7 and 0 or 4
+					btn.tooltip = i == 7 and "No connection" or ("Fluid Type " .. i)
 				end
 				local gui2 = line.add{type = "frame", name = id .. "b"}
 				gui2.style.height = 30
+				gui2.style.vertical_align = "center"
+				gui2.style.top_padding = 0
+				gui2.style.bottom_padding = 0
 				gui2.add{type = "checkbox", name = id .. "-fluid-toggle", caption = "Ingredient", state = data2.fluidIngredient and data2.fluidIngredient or false, tooltip = {"depot-gui-tooltip.fluid-toggle"}}
 			elseif car.type == "cargo-wagon" then
 				gui = root.add{type = "frame", name = id}
 				gui.style.height = 30 --24 for flow, 30 for frame
 				local data = getTrainCarIOData(depot, obj, car.index)
 				--game.print("Creating GUI for car " .. car.index .. ", data = " .. (data and data or "nil"))
-				gui.add{type = "checkbox", name = id .. "-button-1", caption = "I/O Control", state = data.autoControl and data.autoControl or false, tooltip = {"depot-gui-tooltip.auto-control"}}
-				gui.add{type = "checkbox", name = id .. "-button-2", caption = "Fills At Depot", state = data.shouldFill and data.shouldFill or false, tooltip = {"depot-gui-tooltip.should-fill"}}
-				gui.add{type = "checkbox", name = id .. "-button-3", caption = "Can Be Emptied", state = data.allowExtraction and data.allowExtraction or false, tooltip = {"depot-gui-tooltip.allow-empty"}}
+				local box1 = gui.add{type = "checkbox", name = id .. "-button-1", caption = "I/O Control", state = data.autoControl and data.autoControl or false, tooltip = {"depot-gui-tooltip.auto-control"}}
+				local box2 = gui.add{type = "checkbox", name = id .. "-button-2", caption = "Can Fill", state = data.shouldFill and data.shouldFill or false, tooltip = {"depot-gui-tooltip.should-fill"}}
+				local box3 = gui.add{type = "checkbox", name = id .. "-button-3", caption = "Can Empty", state = data.allowExtraction and data.allowExtraction or false, tooltip = {"depot-gui-tooltip.allow-empty"}}
+				box1.style.right_margin = 15
+				box2.style.right_margin = 15
+				box3.style.right_margin = 0
 			else
 				gui = root.add{type = "frame", name = id, caption = "[" .. string.gsub(car.type, "-", " ") .. "]"}
 				gui.style.height = 34
