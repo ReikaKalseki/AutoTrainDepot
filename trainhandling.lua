@@ -152,8 +152,8 @@ end
 
 function getTrainCarIOData(depot, train, car)
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
-	local idx = entry.indices["cargo-wagon"][car]
-	if entry.cars[idx] == nil or entry.cars[idx].type ~= "cargo-wagon" then return nil end
+	local idx = entry.indices["cargo-wagon"] and entry.indices["cargo-wagon"][car] or nil
+	if idx == nil or entry.cars[idx] == nil or entry.cars[idx].type ~= "cargo-wagon" then return nil end
 	local filters = getTrainIOData(depot, train)
 	--game.print("loaded stored filter " .. (filters[car] and filters[car] or "nil") .. " for car " .. car)
 	if not filters[car] or type(filters[car]) ~= "table" then filters[car] = {autoControl = false, shouldFill = false, allowExtraction = true} end
@@ -162,8 +162,8 @@ end
 
 function getTrainCarItemFilterData(depot, train, car, station)
 	local entry = getOrCreateTrainEntryByTrain(depot, train)
-	local idx = entry.indices["cargo-wagon"][car]
-	if entry.cars[idx] == nil or entry.cars[idx].type ~= "cargo-wagon" then return nil end
+	local idx = entry.indices["cargo-wagon"] and entry.indices["cargo-wagon"][car] or nil
+	if idx == nil or entry.cars[idx] == nil or entry.cars[idx].type ~= "cargo-wagon" then return nil end
 	local filters = getTrainItemFilterData(depot, train)
 	--game.print("loaded stored item filter " .. (filters[car] and filters[car] or "nil") .. " for car " .. car)
 	if not filters[car] or type(filters[car]) ~= "table" then filters[car] = {} end
@@ -279,10 +279,19 @@ local function createBypassGui(depot, player, entry)
 			gui.style.bottom_padding = 0
 			gui.tooltip = obj.schedule.records[i].station
 			
-			local gui0 = col1.add{type = "frame", name = id .. "a", direction = "horizontal", caption = tostring(i), tooltip = gui.tooltip}
+			local gui0 = col1.add{type = "frame", name = id .. "a", direction = "horizontal", tooltip = gui.tooltip}
 			gui0.style.top_padding = gui.style.top_padding
 			gui0.style.bottom_padding = gui.style.bottom_padding
-			gui0.style.height = 39
+			gui0.style.height = 48
+			gui0.style.horizontal_align = "center"
+			gui0.style.vertical_align = "center"
+			
+			local label = gui0.add{type = "label", caption = tostring(i)}
+			label.style = "caption_label"
+			label.style.font = "heading-1"
+			label.ignored_by_interaction = true
+			label.style.top_margin = 0
+			gui0.style.top_padding = 2
 			
 			table.insert(guis, gui)
 		end
@@ -312,17 +321,28 @@ local function createFilterGui(depot, player, entry)
 		--root.title_top_padding = 0
 		--root.title_bottom_padding = 0
 		local header2 = root.add{type = "label", name = "traingui-filter-title", caption = "  Station Filters"}
+		header2.style = "caption_label"
 		header2.style.height = 20
 		local header = root.add{type = "flow", name = "traingui-header"}
 		header.style.height = 36
 		local spacer = header.add{type = "sprite", name = "traingui-header-spacer", "utility/empty"}
-		spacer.style.width = 6
+		spacer.style.width = 9
 		local stations = obj.schedule.records
 		for i = 1,#stations do
 			local station = stations[i].station
 			--local box = header.add{type = "sprite", name = "traingui-header-" .. i, sprite = i == 7 and "utility/clear" or ("virtual-signal/signal-" .. i)}
-			local box = header.add{type = "frame", name = "traingui-header-" .. i, caption = i, tooltip = station}
-			box.style.width = 35
+			local box = header.add{type = "frame", name = "traingui-header-" .. i, tooltip = station}
+			--box.style.padding = 5
+			--box.style.left_padding = 9
+			box.style.width = 40
+			box.style.horizontal_align = "center"
+			box.style.vertical_align = "center"
+			local label = box.add{type = "label", caption = i}
+			label.style = "caption_label"
+			label.style.font = "heading-1"
+			label.ignored_by_interaction = true
+			label.style.top_margin = 0
+			box.style.top_padding = 3
 		end
 		for _,car in pairs(entry.cars) do
 			local gui = nil

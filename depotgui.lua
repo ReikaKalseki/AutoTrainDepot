@@ -135,7 +135,6 @@ function handleDepotGUI(event, open)
 end
 
 function handleDepotGUIClick(event)
-	--game.print(event.element.name)
 	if string.find(event.element.name, "depotgui") and event.element.type == "button" then
 		local player = game.players[event.player_index]
 		local ref = event.element

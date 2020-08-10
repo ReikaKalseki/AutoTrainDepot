@@ -344,8 +344,12 @@ script.on_event(defines.events.on_gui_checked_state_changed, function(event)
 end)
 
 script.on_event(defines.events.on_gui_click, function(event)
-	handleTrainGUIClick(event)
-	handleDepotGUIClick(event)
+	if event.element.valid then
+		handleTrainGUIClick(event)
+	end
+	if event.element.valid then
+		handleDepotGUIClick(event)
+	end
 end)
 
 script.on_event(defines.events.on_train_changed_state, function(event)
