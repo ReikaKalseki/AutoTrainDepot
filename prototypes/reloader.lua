@@ -1,5 +1,7 @@
 require "config"
 
+require "__DragonIndustries__.sprites"
+
 local speedFactor = 0.2
 local powerConsumption = 900 --in kW
 
@@ -15,15 +17,6 @@ local function redirectTexture(entry)
 	if entry.hr_version then
 		entry.hr_version.filename = redirectTextureFile(entry.hr_version.filename)
 	end
-end
-
-local function clearTexture(entry)
-	if entry.sheet then clearTexture(entry.sheet) return end
-	entry.filename = "__core__/graphics/empty.png"
-	entry.width = 1
-	entry.height = 1
-	entry.shift = nil
-	entry.hr_version = nil
 end
 
 local reloader = table.deepcopy(data.raw.inserter["stack-inserter"])

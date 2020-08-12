@@ -22,6 +22,13 @@ data:extend({
         },
         {
             type = "bool-setting",
+            name = "inserter-unloader",
+            setting_type = "startup",
+            default_value = false,
+            order = "r",
+        },
+        {
+            type = "bool-setting",
             name = "block-stations",
             setting_type = "startup",
             default_value = true,
