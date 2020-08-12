@@ -391,6 +391,9 @@ data:extend({
 			"logistics-3",
 			"depot-item-count-3",
 			"inserter-capacity-bonus-4",
+			"concrete",
+			"advanced-electronics-2",
+			"low-density-structure"
 		},
 		icon = "__AutoTrainDepot__/graphics/technology/unloader.png",
 		effects =
@@ -408,6 +411,7 @@ data:extend({
 			{"automation-science-pack", 1},
 			{"logistic-science-pack", 1},
 			{"chemical-science-pack", 1},
+			{"production-science-pack", 1},
 		  },
 		  time = 30
 		},

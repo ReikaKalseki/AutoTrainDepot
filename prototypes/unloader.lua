@@ -88,18 +88,21 @@ if Config.unloader and data.raw.loader["express-loader"] then
 	item.icon = loader.icon
 	item.icon_size = 32
 	
-	local recipe = table.deepcopy(data.raw.recipe["train-loader"])
-	if not recipe then 
-		recipe = table.deepcopy(data.raw.recipe["stack-filter-inserter"])
-	end
-	recipe.name = loader.name
-	recipe.result = loader.name
-	recipe.energy_required = 24
-	for _,ing in pairs(recipe.ingredients) do
-		if ing[1] == "express-loader" then
-			ing[2] = 2
-		end
-	end
+	local recipe = {
+		type = "recipe",
+		name = loader.name,
+		enabled = false,
+		energy_required = 24,
+		ingredients =
+		{
+		  data.raw.item["express-loader"] and {"express-loader", 4} or {"stack-inserter", 10},
+		  {"express-transport-belt", 25},
+		  {"processing-unit", 15},
+		  {"concrete", 50},
+		  {"low-density-structure", 10},
+		},
+		result = loader.name
+	}
 		
 	log("Adding train unloader '" .. recipe.name .. "'")
 
