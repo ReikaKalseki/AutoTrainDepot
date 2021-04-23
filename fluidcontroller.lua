@@ -153,7 +153,7 @@ local function createCombinators(depot)
 				if control2 and control2.circuit_condition and control2.circuit_condition.condition and control2.circuit_condition.condition.first_signal and string.find(control2.circuit_condition.condition.first_signal.name, "signal-fluid-", 1, true) then
 					local signal = control2.circuit_condition.condition.first_signal
 					--game.print("Found a pump connected to car " .. pump.index .. " with signal " .. signal.name .. ", creating combinator to bitwise AND signal with " .. (2^pump.index))
-					control.parameters = {parameters={first_signal = {type = signal.type, name = signal.name}, second_constant = 2^(pump.index-depot.closest_pump.distance), operation = "AND", output_signal = {type = signal.type, name = signal.name}}}
+					control.parameters = {first_signal = {type = signal.type, name = signal.name}, second_constant = 2^(pump.index-depot.closest_pump.distance), operation = "AND", output_signal = {type = signal.type, name = signal.name}}
 					local net = pump.entity.circuit_connected_entities
 					local clr = pump.wire == defines.wire_type.red and "red" or "green"
 					local data = net[clr]
@@ -163,7 +163,7 @@ local function createCombinators(depot)
 					pole.connect_neighbour({target_entity = create, wire = pump.wire, target_circuit_id = 1})
 					pump.redirected = true
 					pump.combinator = create
-					--game.print(create.get_control_behavior().parameters.parameters.operation)
+					--game.print(create.get_control_behavior().parameters.operation)
 				end
 			end
 		end

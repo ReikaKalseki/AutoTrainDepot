@@ -402,6 +402,26 @@ local function isFull(storage)
 	return not storage.get_inventory(defines.inventory.chest).can_insert({name="blueprint", count=1})
 end
 
+local function getUnloaderSource(entity)
+	local area = {{entity.position.x-0.25, entity.position.y-0.25}, {entity.position.x+0.25, entity.position.y+0.25}}
+	if entity.direction == defines.direction.west then
+		area[1][1] = area[1][1]-4
+		area[2][1] = area[2][1]-4
+	elseif entity.direction == defines.direction.east then
+		area[1][1] = area[1][1]+4
+		area[2][1] = area[2][1]+4
+	elseif entity.direction == defines.direction.north then
+		area[1][2] = area[1][2]-4
+		area[2][2] = area[2][2]-4
+	elseif entity.direction == defines.direction.south then
+		area[1][2] = area[1][2]+4
+		area[2][2] = area[2][2]+4
+	end
+	local loaders = entity.surface.find_entities_filtered({type = "cargo-wagon", area = area, force = entity.force, limit = 1})
+	--game.print(serpent.block(loaders))
+	return #loaders > 0 and loaders[1] or nil
+end
+
 local function verifyInputsAndStorages(glbl, depot)
 	if depot.storages then
 		for unit,storage in pairs(depot.storages) do
@@ -430,6 +450,10 @@ local function verifyInputsAndStorages(glbl, depot)
 				depot.isFull = true
 			elseif input.entity.type == "inserter" and (depot.wasFull or isPowerAvailable(depot.controller.force, "dynamic-filters")) then -- input.entity.name == "dynamic-train-unloader"
 				local src = input.entity.pickup_target
+				if src == nil and input.entity.name == "train-unloader" then
+					src = getUnloaderSource(input.entity)
+				end
+				--game.print(serpent.block(src) .. " @ " .. serpent.block(input.entity.position))
 				if src and src.type == "cargo-wagon" then
 					local data = getTrainCarIOData(glbl, src.train, getIndexedCarByWagon(glbl, src).index)
 					if data and data.autoControl and data.shouldFill and (not data.allowExtraction) then
@@ -639,37 +663,55 @@ local function clearInserter(pull)
 end
 
 local function clearOutputInserters(entry)
-	if not entry.pulls then return end
-	for unit,pull in pairs(entry.pulls) do
-		if pull.entity.valid and pull.storage.valid then
-			if pull.entity.held_stack and pull.entity.held_stack.valid_for_read then
-				--[[
-				local empty = pull.entity.drop_position
-				local area = {{empty.x-1, empty.y-1}, {empty.x+1, empty.y+1}}
-				local rail = pull.entity.surface.find_entities_filtered{type = "straight-rail", limit = 1, area = area}
-				if rail and #rail > 0 then
-					local wagons = pull.entity.surface.find_entities_filtered{type = "cargo-wagon", limit = 1, area = area}
-					if wagons and #wagons > 0 then
+	if entry.pulls then
+		for unit,pull in pairs(entry.pulls) do
+			if pull.entity.valid and pull.storage.valid then
+				if pull.entity.held_stack and pull.entity.held_stack.valid_for_read then
+					--[[
+					local empty = pull.entity.drop_position
+					local area = {{empty.x-1, empty.y-1}, {empty.x+1, empty.y+1}}
+					local rail = pull.entity.surface.find_entities_filtered{type = "straight-rail", limit = 1, area = area}
+					if rail and #rail > 0 then
+						local wagons = pull.entity.surface.find_entities_filtered{type = "cargo-wagon", limit = 1, area = area}
+						if wagons and #wagons > 0 then
+						
+						else
+							--game.print("Adding " .. pull.entity.held_stack.name .. " x" .. pull.entity.held_stack.count)
+							clearInserter(pull)
+						end
+					end
+					--]]
 					
-					else
-						--game.print("Adding " .. pull.entity.held_stack.name .. " x" .. pull.entity.held_stack.count)
-						clearInserter(pull)
+					if pull.entity.held_stack_position.x == pull.entity.drop_position.x and pull.entity.held_stack_position.y == pull.entity.drop_position.y then --is "waiting" to drop
+						if pull.wasStuck then
+							clearInserter(pull)
+							pull.wasStuck = false
+						else
+							pull.wasStuck = true
+						end
 					end
 				end
-				--]]
-				
-				if pull.entity.held_stack_position.x == pull.entity.drop_position.x and pull.entity.held_stack_position.y == pull.entity.drop_position.y then --is "waiting" to drop
-					if pull.wasStuck then
-						clearInserter(pull)
-						pull.wasStuck = false
-					else
-						pull.wasStuck = true
-					end
-				end
+			else
+				entry.pulls[unit] = nil
 			end
-		else
-			entry.pulls[unit] = nil
-		end
+		end--[[
+		for unit,feed in pairs(entry.inputs) do
+			if feed.entity.valid and feed.storage.valid and feed.entity.type == "inserter" then
+				if feed.entity.held_stack and feed.entity.held_stack.valid_for_read then					
+					if feed.entity.name == "train-unloader" or (feed.entity.held_stack_position.x == feed.entity.drop_position.x and feed.entity.held_stack_position.y == feed.entity.drop_position.y) then --is "waiting" to drop
+						--game.print(feed.entity.name .. " @ " .. serpent.block(feed.entity.position))
+						if feed.wasStuck then
+							clearInserter(feed)
+							feed.wasStuck = false
+						else
+							feed.wasStuck = true
+						end
+					end
+				end
+			else
+				entry.inputs[unit] = nil
+			end
+		end--]]
 	end
 end
 

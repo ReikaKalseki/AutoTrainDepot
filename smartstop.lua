@@ -46,7 +46,7 @@ end
 local function setCircuitSignals(entry, ingredientsFull, ingredientsEmpty, productsFull, productsEmpty)
 	--game.print(serpent.block(entry.output))
 	if entry.output then
-		params = {parameters = {
+		params = {
 			{
 				index = 1,
 				signal = {type = "virtual", name = "train-ingredients-full"},
@@ -67,7 +67,7 @@ local function setCircuitSignals(entry, ingredientsFull, ingredientsEmpty, produ
 				signal = {type = "virtual", name = "train-products-empty"},
 				count = productsEmpty and 1 or 0,
 			},
-		}}
+		}
 		entry.output.get_control_behavior().parameters = params
 	end
 end

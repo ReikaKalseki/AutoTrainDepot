@@ -337,7 +337,7 @@ if data.raw.tool["bob-logistic-science-pack"] then
 end
 
 if data.raw.technology["zinc-processing"] then
-	table.insert(data.raw.technology["smart-train-stop"].prerequisites, {"zinc-processing"})
+	table.insert(data.raw.technology["smart-train-stop"].prerequisites, "zinc-processing")
 end
 
 if Config.reloader and data.raw.loader["fast-loader"] then
