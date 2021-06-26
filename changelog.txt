@@ -16,6 +16,7 @@ Date: Nov 15 2020
 Version: 1.18.18
 Date: Aug 10 2020
 	- Redesigned custom train GUI
+	- Depots now have a GUI of their own
 ---------------------------------------------------------------------------------------------------
 Version: 1.18.12
 Date: Jul 5 2020
@@ -56,11 +57,11 @@ Date: Jun 17 2019
 Version: 1.17.6
 Date: Jun 6 2019
 	- Fixed issues in 0.17 update
+	- Moved shared code to Dragon Industries
 ---------------------------------------------------------------------------------------------------
 Version: 1.17.1
 Date: Mar 23 2019
 	- Updated to 0.17
-	- Moved shared code to Dragon Industries
 ---------------------------------------------------------------------------------------------------
 Version: 1.0.180
 Date: Nov 28 2018
@@ -128,10 +129,10 @@ Date: Aug 24 2018
 	- Added a new element to train GUIs to allow for liquid routing control
 ---------------------------------------------------------------------------------------------------
 Version: 1.0.120
-Date: Aug 21 2018
+Date: Aug 20 2018
 	- Added some missing locale
 	- Fixed missing handling for adding large versions of storage logic warehouses
 ---------------------------------------------------------------------------------------------------
 Version: 1.0.96
-Date: Aug 20 2018
+Date: Jul 29 2018
 	- Release
