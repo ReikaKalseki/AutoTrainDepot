@@ -53,9 +53,9 @@ local function createTech(name, deps, packs, count)
 		upgrade = true
 		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-wagon-slot", tostring(WAGON_SLOT_TIERS[lvl])}})
 	elseif name == "depot-base" then
+		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-item-count", tostring(ITEM_COUNT_TIERS[1])}})
 		table.insert(effects, {type = "unlock-recipe", recipe = "depot-controller"})
 		table.insert(effects, {type = "unlock-recipe", recipe = "depot-stop"})
-		table.insert(effects, {type = "nothing", effect_description = {"modifier-description.depot-item-count", tostring(ITEM_COUNT_TIERS[1])}})
 	else
 		table.insert(deps, "depot-base")
 		ico = "__AutoTrainDepot__/graphics/technology/depot-feature.png"
@@ -74,6 +74,9 @@ local function createTech(name, deps, packs, count)
 			log("Removing tech dependency " .. dep .. "; does not exist.")
 			table.remove(deps, i)
 		end
+	end
+	if #effects > 0 and effects[1].type == "nothing" then
+		effects[1].icons = {{icon = ico, icon_size = 128}}
 	end
 	data:extend({
 	{
