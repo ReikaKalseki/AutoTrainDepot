@@ -8,10 +8,23 @@ require "__DragonIndustries__.items"
 local balanceRate = 240 --4s
 local balanceRateNoTrain = 600*3 --30s
 
+--filling trains uses red!!
+
 local function isPowerAvailable(force, power)
 	--game.print("Checking power " .. power .. ": " .. (force.technologies["depot-" .. power].researched and "has" or "no"))
 	local tech = force.technologies["depot-" .. power]
 	return tech and tech.researched
+end
+
+local function getMaxSlotsAllowed(entry)
+	for i = #SLOT_COUNT_TIERS,1,-1 do
+		local tech = entry.controller.force.technologies["depot-item-slots-" .. i]
+		if not tech then error("No such tech index: depot-item-slots-" .. i) end
+		if tech.researched then
+			return SLOT_COUNT_TIERS[i]
+		end
+	end
+	return 1
 end
 
 local function getSlotsForType(depot, item)
@@ -21,9 +34,9 @@ end
 local function getControllableItemTypes(force)
 	for i = #ITEM_COUNT_TIERS-1,1,-1 do
 		local tech = force.technologies["depot-item-count-" .. i]
-		if tech.researched then return ITEM_COUNT_TIERS[i+1] end
+		if tech.researched then return ITEM_COUNT_TIERS[i] end
 	end
-	return ITEM_COUNT_TIERS[1]
+	return 2
 end
 
 function getInputThreshold(depot, item)
@@ -111,9 +124,11 @@ local function getInputBelts(depot)
 		end
 		
 		--local added = false
+		--game.print("Depot @ " .. depot.controller.position.x .. ", " .. depot.controller.position.y .. " has " .. table_size(feeds) .. " feeding [" .. serpent.block(depot.hasDropoffTrain) .. "]")
 		
-		for _,feed in pairs(feeds) do -- can be belt OR inserter, nothing else
-			if --[[(not depot.inputCount or depot.inputCount < depot.typeLimit) and --]]not depot.inputs[feed.unit_number] then --prevent duplicate or too many entries->[9mo later]...wait..."too many"???
+		for _,feed in ipairs(feeds) do -- can be belt OR inserter, nothing else
+			--game.print("Running " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " for depot @ " .. depot.controller.position.x .. ", " .. depot.controller.position.y)
+			--if --[[(not depot.inputCount or depot.inputCount < depot.typeLimit) and --]] then --2022: duplicates on keyed is not a problem - prevent duplicate or too many entries->[9mo later]...wait..."too many"???
 				if depot.hasDropoffTrain then
 					local item = nil
 					if feed.type == "transport-belt" then
@@ -157,13 +172,16 @@ local function getInputBelts(depot)
 						--added = true
 						
 						--game.print("Connected " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " for item " .. item)
+					else
+						--game.print(feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " has no item")
 					end
 				else
+					--game.print(feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " active due to no train")
 					feed.active = true
 					local control = feed.get_or_create_control_behavior()
 					control.circuit_condition = {condition={comparator=">", first_signal={type="virtual", name="signal-anything"}, constant=-9999}}
 				end
-			end
+			--end
 			--if (not added) and depot.inputs[feed.unit_number] == nil then game.print("Did not add entity " .. serpent.block(feed.position)) feed.surface.create_entity{name="inserter", position=feed.position} end
 		end
 		
@@ -236,17 +254,6 @@ local function getCombinatorOutput(entity)
 	end
 	--]]
 	return ret and math.max(1, ret.count) or 1
-end
-
-local function getMaxSlotsAllowed(entry)
-	for i = #SLOT_COUNT_TIERS,1,-1 do
-		local tech = entry.controller.force.technologies["depot-item-slots-" .. i]
-		if not tech then error("No such tech index: depot-item-slots-" .. i) end
-		if tech.researched then
-			return SLOT_COUNT_TIERS[i]
-		end
-	end
-	return 1
 end
 
 local function calculateTypeLimits(entry)
@@ -499,14 +506,22 @@ local function balanceStorages(depot)
 	local totals = {}
 	local counts = {}
 	local div = 0
+	local empty = 0
+	local totalSlots = 0
 	for _,storage in pairs(depot.storages) do
-		local has = storage.get_inventory(defines.inventory.chest).get_contents()
+		local inv = storage.get_inventory(defines.inventory.chest)
+		empty = empty+inv.count_empty_stacks(false)
+		totalSlots = totalSlots+#inv
+		local has = inv.get_contents()
 		for type,amt in pairs(has) do
 			local old = amounts[type] and amounts[type] or 0
 			amounts[type] = old+amt
 			totals[type] = amounts[type]
 		end
 		div = div+1
+	end
+	if empty < div*2 then
+		return
 	end
 	--log(serpent.block(amounts))
 	for _,storage in pairs(depot.storages) do
@@ -524,19 +539,21 @@ local function balanceStorages(depot)
 	end
 	for type,amt in pairs(totals) do
 		if amt > 0 and amounts[type] > 0 then --add leftovers
-			local storage = depot.storages[depot.primaryStorage]
-			local inv = storage.get_inventory(defines.inventory.chest)
-			local added = inv.insert({name = type, count = amt})
-			totals[type] = totals[type]-added
-			amounts[type] = totals[type]
-			counts[type] = totals[type]
-			--if amounts[type] <= 0 then break end
+			for _,storage in pairs(depot.storages) do
+				local inv = storage.get_inventory(defines.inventory.chest)
+				local added = inv.insert({name = type, count = amt})
+				totals[type] = totals[type]-added
+				counts[type] = totals[type]
+				if counts[type] <= 0 then break end
+			end
 		end
 	end
+	
 	for type,amt in pairs(counts) do --leftover
 		if amt > 0 then
 			depot.controller.force.print("Depot had excesss of " .. amt .. " " .. type .. ", which it had to spill to avoid voiding!")
 			depot.controller.surface.spill_item_stack(depot.controller.position, {name=type, count=amt}, true, depot.controller.force)
+			depot.isFull = true
 		end
 	end
 	--[[

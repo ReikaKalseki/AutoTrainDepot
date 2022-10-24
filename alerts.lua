@@ -26,14 +26,11 @@ local functionIDs = {
 	["deadlock"] = function(train) return train.state == defines.train_state.wait_signal end,
 }
 
-local function playAlert(depot, force, alert, tag, train, from, to, sound)
-	local entry = getOrCreateTrainEntryByTrain(depot, train)
-	local name = entry.displayName and entry.displayName or tostring(train.id)
-	for _,player in pairs(force.players) do
-		player.add_custom_alert(train.carriages[1], {type = "virtual", name = alert}, {tag, name, from, to}, true)
-		if sound then
-			player.play_sound{path="train-alert"}
-		end
+local function shouldPlaySound(alert)
+	if alert == "nopath" then
+		return Config.noPathSound
+	elseif alert == "deadlock" then
+		return Config.deadlockSound
 	end
 end
 
@@ -44,6 +41,17 @@ local function getFunction(alert)
 		return function(train) return train.state == defines.train_state.no_path end
 	elseif alert == "deadlock" then
 		return function(train) return train.state == defines.train_state.wait_signal end
+	end
+end
+
+local function playAlert(depot, force, alert, tag, train, from, to, sound)
+	local entry = getOrCreateTrainEntryByTrain(depot, train)
+	local name = entry.displayName and entry.displayName or tostring(train.id)
+	for _,player in pairs(force.players) do
+		player.add_custom_alert(train.carriages[1], {type = "virtual", name = alert}, {tag, name, from, to}, true)
+		if sound and shouldPlaySound(alert) then
+			player.play_sound{path="train-alert"}
+		end
 	end
 end
 

@@ -1,9 +1,10 @@
 require "__DragonIndustries__.strings"
 
+--no research = 2 types
 ITEM_COUNT_TIERS = {5, 10, 25, 50, 100, 200, 500, 1000}
 
 --no research = 1 slot per item type
-SLOT_COUNT_TIERS = {2, 5, 10, 25, 50, 250, 1000}
+SLOT_COUNT_TIERS = {2, 5, 10, 25, 50, 100, 250, 1000}
 
 CATEGORY_FRACTIONS = {
 	["intermediate-products"] = 0.5, --includes bob

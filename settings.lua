@@ -34,4 +34,18 @@ data:extend({
             default_value = true,
             order = "r",
         },
+        {
+            type = "bool-setting",
+            name = "enable-deadlock-alert-sound",
+            setting_type = "startup",
+            default_value = true,
+            order = "r",
+        },
+        {
+            type = "bool-setting",
+            name = "enable-nopath-alert-sound",
+            setting_type = "startup",
+            default_value = true,
+            order = "r",
+        },
 })

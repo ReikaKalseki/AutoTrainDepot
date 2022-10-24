@@ -184,7 +184,7 @@ for i = 1,#SLOT_COUNT_TIERS do
 	if i == 7 then
 		table.insert(dep, "bob-logistics-5")
 	end
-	createTech("depot-item-slots-" .. i, dep, pack, 20*2^(i*1.125))
+	createTech("depot-item-slots-" .. i, dep, pack, 20*(1.6^(i*1.2)))
 end
 
 for i = 1,#WAGON_SLOT_TIERS do
