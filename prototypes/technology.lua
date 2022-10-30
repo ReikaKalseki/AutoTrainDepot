@@ -106,14 +106,16 @@ createTech("depot-inserter-cleaning", {"more-inserters-1"}, {}, 25)
 createTech("depot-balancing", {"fast-loader"}, {}, 200)
 createTech("depot-dynamic-filters", {"optics"}, {}, 80)
 createTech("depot-cargo-filters", {}, {}, 100)
+createTech("depot-mixed-inputs", {"logistics-3", "advanced-electronics"}, data.raw.tool["advanced-logistic-science-pack"] and {{"advanced-logistic-science-pack", 1}} or {}, 200)
+createTech("depot-smart-filtering", {"logistics-3", "advanced-electronics"}, data.raw.tool["advanced-logistic-science-pack"] and {{"chemical-science-pack", 1}, {"advanced-logistic-science-pack", 1}} or {{"chemical-science-pack", 1}}, 400)
 --createTech("depot-category-limits", {"advanced-electronics"}, {{"chemical-science-pack", 1}}, 100)
 
 for i = 2,6 do
 	local pack = {{"chemical-science-pack", 1}}
 	local pack3 = false
 	if i >= 5 then
-		if data.raw.tool["bob-logistic-science-pack"] then
-			table.insert(pack, {"bob-logistic-science-pack", 1})
+		if data.raw.tool["advanced-logistic-science-pack"] then
+			table.insert(pack, {"advanced-logistic-science-pack", 1})
 		else
 
 		end
@@ -128,8 +130,8 @@ for i = 1,#ITEM_COUNT_TIERS-1 do
 	local pack = {}
 	local pack3 = false
 	if i >= 4 then
-		if data.raw.tool["bob-logistic-science-pack"] then
-			table.insert(pack, {"bob-logistic-science-pack", 1})
+		if data.raw.tool["advanced-logistic-science-pack"] then
+			table.insert(pack, {"advanced-logistic-science-pack", 1})
 		else
 			table.insert(pack, {"chemical-science-pack", 1})
 			pack3 = true
@@ -158,8 +160,8 @@ for i = 1,#SLOT_COUNT_TIERS do
 	local pack = {}
 	local pack3 = false
 	if i >= 4 then
-		if data.raw.tool["bob-logistic-science-pack"] then
-			table.insert(pack, {"bob-logistic-science-pack", 1})
+		if data.raw.tool["advanced-logistic-science-pack"] then
+			table.insert(pack, {"advanced-logistic-science-pack", 1})
 		else
 			table.insert(pack, {"chemical-science-pack", 1})
 			pack3 = true
@@ -189,8 +191,8 @@ end
 
 for i = 1,#WAGON_SLOT_TIERS do
 	local pack = {}
-	if i >= 5 and data.raw.tool["bob-logistic-science-pack"] then
-		table.insert(pack, {"bob-logistic-science-pack", 1})
+	if i >= 5 and data.raw.tool["advanced-logistic-science-pack"] then
+		table.insert(pack, {"advanced-logistic-science-pack", 1})
 	end
 	if i >= 4 then
 		table.insert(pack, {"chemical-science-pack", 1})
@@ -334,8 +336,8 @@ data:extend({
 	},
 })
 
-if data.raw.tool["bob-logistic-science-pack"] then
-	table.insert(data.raw.technology["bypass-beacons"].unit.ingredients, {"bob-logistic-science-pack", 1})
+if data.raw.tool["advanced-logistic-science-pack"] then
+	table.insert(data.raw.technology["bypass-beacons"].unit.ingredients, {"advanced-logistic-science-pack", 1})
 	data.raw.technology["bypass-beacons"].unit.count = 60
 end
 
@@ -378,8 +380,8 @@ data:extend({
 	},
 })
 
-	if data.raw.tool["bob-logistic-science-pack"] then
-		table.insert(data.raw.technology["rapid-loading"].unit.ingredients, {"bob-logistic-science-pack", 1})
+	if data.raw.tool["advanced-logistic-science-pack"] then
+		table.insert(data.raw.technology["rapid-loading"].unit.ingredients, {"advanced-logistic-science-pack", 1})
 		data.raw.technology["rapid-loading"].unit.count = 90
 	end
 end
@@ -423,8 +425,8 @@ data:extend({
 	},
 })
 
-	if data.raw.tool["bob-logistic-science-pack"] then
-		table.insert(data.raw.technology["rapid-unloading"].unit.ingredients, {"bob-logistic-science-pack", 1})
+	if data.raw.tool["advanced-logistic-science-pack"] then
+		table.insert(data.raw.technology["rapid-unloading"].unit.ingredients, {"advanced-logistic-science-pack", 1})
 		data.raw.technology["rapid-loading"].unit.count = 75
 	end
 

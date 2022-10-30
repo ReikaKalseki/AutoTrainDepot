@@ -1,23 +1,6 @@
-require "__DragonIndustries__.arrays"
+require "controller"
 
-local function getDepotContents(entry)
-	local items = {}
-	for _,storage in pairs(entry.storages) do
-		local inv = storage.get_inventory(defines.inventory.chest)
-		if inv and #inv > 0 then
-			for i = 1,#inv do
-				local item = inv[i]
-				if item and item.valid_for_read then
-					local has = items[item.name]
-					if not has then has = 0 end
-					has = has+item.count
-					items[item.name] = has
-				end
-			end
-		end
-	end
-	return items
-end
+require "__DragonIndustries__.arrays"
 
 local function collectFromDepotAndAddToPlayer(entry, player, item)
 	local plinv = player.get_inventory(defines.inventory.character_main)

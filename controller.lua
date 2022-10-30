@@ -3,17 +3,38 @@ require "constants"
 require "trainhandling"
 require "belthandling"
 
+require "__DragonIndustries__.arrays"
 require "__DragonIndustries__.items"
+require "__DragonIndustries__.entities"
 
 local balanceRate = 240 --4s
 local balanceRateNoTrain = 600*3 --30s
 
 --filling trains uses red!!
 
-local function isPowerAvailable(force, power)
+function isPowerAvailable(force, power)
 	--game.print("Checking power " .. power .. ": " .. (force.technologies["depot-" .. power].researched and "has" or "no"))
 	local tech = force.technologies["depot-" .. power]
 	return tech and tech.researched
+end
+
+function getDepotContents(entry)
+	local items = {}
+	for _,storage in pairs(entry.storages) do
+		local inv = storage.get_inventory(defines.inventory.chest)
+		if inv and #inv > 0 then
+			for i = 1,#inv do
+				local item = inv[i]
+				if item and item.valid_for_read then
+					local has = items[item.name]
+					if not has then has = 0 end
+					has = has+item.count
+					items[item.name] = has
+				end
+			end
+		end
+	end
+	return items
 end
 
 local function getMaxSlotsAllowed(entry)
@@ -43,6 +64,42 @@ function getInputThreshold(depot, item)
 	return math.floor((getSlotsForType(depot, item)-0.1)*game.item_prototypes[item].stack_size) --the slight reduction is to ensure does not spill over due to latency; some still inbound
 end
 
+local function isItemValidForDepot(depot, item)
+	if isPowerAvailable(depot.controller.force, "smart-filtering") then
+		--[[
+		for name,stop in pairs(depot.stations) do
+			if string.find(name, "ore", 1, true) then
+			
+			end
+		end
+		local stopname = depot.controller.???.backer_name
+		--]]
+		local wire = defines.wire_type.red
+		if depot.wire == wire then wire = defines.wire_type.green end
+		local net = depot.controller.get_circuit_network(wire)
+		if net and net.valid and net.signals then
+			local itemSignals = 0
+			for _,signal in pairs(net.signals) do
+				if signal.signal.type == "item" and signal.count > 0 then
+					itemSignals = itemSignals+1
+					--game.print("Checking item " .. item .. " against signal " .. signal.signal.name)
+					if signal.signal.name == item then return true end
+				end
+			end
+			if itemSignals > 0 then
+				--game.print("Item was not valid [" .. getTableSize(net.signals) .. "] for " .. depot.controller.position.x .. ", " .. depot.controller.position.y .. ": " .. item)
+				return false
+			else
+				return true
+			end
+		else
+			return true
+		end
+	else
+		return true
+	end
+end
+
 local function getLoopFedStorages(depot, entity)
 	if depot.loopFeeds[entity.unit_number] then return nil, nil end
 	local from = entity.pickup_target
@@ -50,6 +107,23 @@ local function getLoopFedStorages(depot, entity)
 	if from and not depot.storages[from.unit_number] then from = nil end
 	if to and not depot.storages[to.unit_number] then to = nil end
 	return from, to
+end
+
+local function getBestItemForDepot(depot, inv)
+	local items = inv.get_contents()
+	local size = getTableSize(items)
+	if size <= 0 then return nil end
+	if size == 1 then for item,amt in pairs(items) do return item end end
+	if size > 0 then
+		local contents = getDepotContents(depot)
+		if getTableSize(items) > 0 then
+			for item,amt in pairs(contents) do
+				if items[item] and contents[item] < getInputThreshold(depot, item) and isItemValidForDepot(depot, item) then --contained in both, and depot has less than limit of
+					return item
+				end
+			end
+		end
+	end
 end
 
 local function getInputBelts(depot)
@@ -124,58 +198,77 @@ local function getInputBelts(depot)
 		end
 		
 		--local added = false
-		--game.print("Depot @ " .. depot.controller.position.x .. ", " .. depot.controller.position.y .. " has " .. table_size(feeds) .. " feeding [" .. serpent.block(depot.hasDropoffTrain) .. "]")
+		--game.print("Depot @ " .. depot.controller.position.x .. ", " .. depot.controller.position.y .. " has " .. getTableSize(feeds) .. " feeding [" .. serpent.block(depot.hasDropoffTrain) .. "]")
 		
 		for _,feed in ipairs(feeds) do -- can be belt OR inserter, nothing else
 			--game.print("Running " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " for depot @ " .. depot.controller.position.x .. ", " .. depot.controller.position.y)
-			--if --[[(not depot.inputCount or depot.inputCount < depot.typeLimit) and --]] then --2022: duplicates on keyed is not a problem - prevent duplicate or too many entries->[9mo later]...wait..."too many"???
-				if depot.hasDropoffTrain then
-					local item = nil
-					if feed.type == "transport-belt" then
-						local line = feed.get_transport_line(1)
+			--if --[[(not depot.inputCount or depot.inputCount < depot.typeLimit) and --]] then - prevent duplicate or too many entries->[9mo later]...wait..."too many"???--2022: duplicates on keyed is not a problem 
+				if feed.filter_slot_count > 0 then
+					local flt = feed.get_filter(1)
+					if flt and not isItemValidForDepot(depot, flt) then
+						feed.set_filter(1, "raw-fish")
+					end
+				end
+				local item = nil
+				if feed.type == "transport-belt" then
+					local line = feed.get_transport_line(1)
+					item = line.get_item_count() > 0 and line[1] or item
+					if not item then
+						line = feed.get_transport_line(2)
 						item = line.get_item_count() > 0 and line[1] or item
-						if not item then
-							line = feed.get_transport_line(2)
-							item = line.get_item_count() > 0 and line[1] or item
-						end
-						item = (item and item.valid_for_read) and item.name or nil
-					else
-						item = feed.filter_slot_count > 0 and feed.get_filter(1) or nil --use filters first, but override with actual held items
-						item = feed.held_stack and feed.held_stack.valid_for_read and feed.held_stack.name or item
 					end
-					
-					--local old = (depot.inputs[feed.unit_number] and depot.inputs[feed.unit_number].item) and depot.inputs[feed.unit_number].item or "nil"
-					--game.print("Found " .. (item and item or "nil") .. " (from " .. old .. ")" .. " for " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y)
-					if item then
-						feed.active = true --turn any disabled entities back on, and enable any unloaders
-						
-						storage.connect_neighbour({wire = depot.wire, target_entity = feed})
-						
-						local control = feed.get_or_create_control_behavior()
-						if control.type == defines.control_behavior.type.transport_belt then
-							control.enable_disable = true
-							control.read_contents = false
-						elseif control.type == defines.control_behavior.type.inserter then
-							control.circuit_read_hand_contents = false
-							control.circuit_set_stack_size = false
-							--control.circuit_stack_control_signal = nil
-							control.circuit_mode_of_operation = defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable
-						end
-						control.connect_to_logistic_network = false
-						
-						depot.inputCount = depot.inputCount and depot.inputCount+1 or 1
-						
-						local thresh = getInputThreshold(depot, item)
-						control.circuit_condition = {condition={comparator="<", first_signal={type="item", name=item}, constant=thresh}}
-						
-						depot.inputs[feed.unit_number] = {item = item, entity = feed, limit = thresh, storage = storage}
-						--added = true
-						
-						--game.print("Connected " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " for item " .. item)
-					else
-						--game.print(feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " has no item")
-					end
+					item = (item and item.valid_for_read) and item.name or nil
 				else
+					if feed.filter_slot_count > 0 and not feed.get_filter(1) then --otherwise the inserter will never "fire"
+						feed.set_filter(1, "raw-fish")
+					end
+					item = feed.filter_slot_count > 0 and feed.get_filter(1) or nil
+					item = feed.held_stack and feed.held_stack.valid_for_read and feed.held_stack.name or item --use filters first, but override with actual held items
+					--game.print("Running " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " >> " .. (feed.pickup_target and "has pickup" or "no pickup"))
+					if feed.pickup_target and feed.pickup_target.valid and isPowerAvailable(depot.controller.force, "mixed-inputs") then
+						local best = getBestItemForDepot(depot, getPrimaryInventory(feed.pickup_target))
+						--game.print("Found best mixed input @ " .. feed.position.x .. ", " .. feed.position.y .. ": " .. (best and best or "none"))
+						if best then
+							item = best
+						end
+					end
+					if item and feed.filter_slot_count > 0 and isItemValidForDepot(depot, item) then
+						feed.set_filter(1, item)
+					end
+				end
+				
+				--local old = (depot.inputs[feed.unit_number] and depot.inputs[feed.unit_number].item) and depot.inputs[feed.unit_number].item or "nil"
+				--game.print("Found " .. (item and item or "nil") .. " (from " .. old .. ")" .. " for " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y)
+				if item and isItemValidForDepot(depot, item) then
+					feed.active = true --turn any disabled entities back on, and enable any unloaders
+					
+					storage.connect_neighbour({wire = depot.wire, target_entity = feed})
+					
+					local control = feed.get_or_create_control_behavior()
+					if control.type == defines.control_behavior.type.transport_belt then
+						control.enable_disable = true
+						control.read_contents = false
+					elseif control.type == defines.control_behavior.type.inserter then
+						control.circuit_read_hand_contents = false
+						control.circuit_set_stack_size = false
+						--control.circuit_stack_control_signal = nil
+						control.circuit_mode_of_operation = defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable
+					end
+					control.connect_to_logistic_network = false
+					
+					depot.inputCount = depot.inputCount and depot.inputCount+1 or 1
+					
+					local thresh = getInputThreshold(depot, item)
+					control.circuit_condition = {condition={comparator="<", first_signal={type="item", name=item}, constant=thresh}}
+					
+					depot.inputs[feed.unit_number] = {item = item, entity = feed, limit = thresh, storage = storage}
+					--added = true
+					
+					--game.print("Connected " .. feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " for item " .. item)
+				else
+					--game.print(feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " has no valid item")
+				end
+				if feed.type == "inserter" and not depot.hasDropoffTrain then
 					--game.print(feed.name .. " @ " .. feed.position.x .. ", " .. feed.position.y .. " active due to no train")
 					feed.active = true
 					local control = feed.get_or_create_control_behavior()
