@@ -1,4 +1,20 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.148.1
+Date: Oct 31 2022
+	- Added options for the sound component of each of the two train alerts
+	- Added a new tier of "depot slot count" tech at 250, before the final 1000
+	- Fixed depots sometimes failing to detect inputs and allowing over-limit item insertion
+	- Reduced chance of item spillage from balancing gone wrong
+	- Cheapened slot count research
+	- Added "mixed-type insertion" depot tech and capability
+	- Added "smart filtering" depot tech and capability
+	- Fixed detection of bob pink logistics science
+---------------------------------------------------------------------------------------------------
+Version: 1.144.1
+Date: Oct 7 2022
+	- Added missing locale for "inserter-unloader" setting
+	- Added icons for technology effects
+---------------------------------------------------------------------------------------------------
 Version: 1.105.1
 Date: Apr 28 2021
 	- 1.1 Update
