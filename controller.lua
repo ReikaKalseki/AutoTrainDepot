@@ -64,6 +64,15 @@ function getInputThreshold(depot, item)
 	return math.floor((getSlotsForType(depot, item)-0.1)*game.item_prototypes[item].stack_size) --the slight reduction is to ensure does not spill over due to latency; some still inbound
 end
 
+local function getAuxSignals(depot)
+	local wire = defines.wire_type.red
+	if depot.wire == wire then wire = defines.wire_type.green end
+	local net = depot.controller.get_circuit_network(wire)
+	if net and net.valid and net.signals then
+		return net.signals
+	end
+end
+
 local function isItemValidForDepot(depot, item)
 	if isPowerAvailable(depot.controller.force, "smart-filtering") then
 		--[[
@@ -74,12 +83,10 @@ local function isItemValidForDepot(depot, item)
 		end
 		local stopname = depot.controller.???.backer_name
 		--]]
-		local wire = defines.wire_type.red
-		if depot.wire == wire then wire = defines.wire_type.green end
-		local net = depot.controller.get_circuit_network(wire)
-		if net and net.valid and net.signals then
+		local signals = getAuxSignals(depot)
+		if signals then
 			local itemSignals = 0
-			for _,signal in pairs(net.signals) do
+			for _,signal in pairs(signals) do
 				if signal.signal.type == "item" and signal.count > 0 then
 					itemSignals = itemSignals+1
 					--game.print("Checking item " .. item .. " against signal " .. signal.signal.name)
@@ -87,7 +94,7 @@ local function isItemValidForDepot(depot, item)
 				end
 			end
 			if itemSignals > 0 then
-				--game.print("Item was not valid [" .. getTableSize(net.signals) .. "] for " .. depot.controller.position.x .. ", " .. depot.controller.position.y .. ": " .. item)
+				--game.print("Item was not valid [" .. getTableSize(signals) .. "] for " .. depot.controller.position.x .. ", " .. depot.controller.position.y .. ": " .. item)
 				return false
 			else
 				return true
@@ -109,17 +116,34 @@ local function getLoopFedStorages(depot, entity)
 	return from, to
 end
 
+local function canDepotAcceptMore(depot, item, contents)
+	local has = contents[item]
+	return (has == nil or has < getInputThreshold(depot, item)) and isItemValidForDepot(depot, item)
+end
+
 local function getBestItemForDepot(depot, inv)
 	local items = inv.get_contents()
 	local size = getTableSize(items)
-	if size <= 0 then return nil end
-	if size == 1 then for item,amt in pairs(items) do return item end end
-	if size > 0 then
+	if size <= 0 then
+		return nil
+	elseif size == 1 then
+		for item,amt in pairs(items) do return item end
+	else
+		local signals = getAuxSignals(depot)
 		local contents = getDepotContents(depot)
-		if getTableSize(items) > 0 then
-			for item,amt in pairs(contents) do
-				if items[item] and contents[item] < getInputThreshold(depot, item) and isItemValidForDepot(depot, item) then --contained in both, and depot has less than limit of
+		if signals then
+			for _,signal in pairs(signals) do
+				local item = signal.signal.name
+				if signal.signal.type == "item" and signal.count > 0 and items[item] and canDepotAcceptMore(depot, item, contents) then --on the selector circuit, and depot has less than limit
 					return item
+				end
+			end
+		else
+			if getTableSize(contents) > 0 then
+				for item,amt in pairs(contents) do
+					if items[item] and canDepotAcceptMore(depot, item, contents) then --contained in both, and depot has less than limit of
+						return item
+					end
 				end
 			end
 		end
@@ -164,7 +188,7 @@ local function getInputBelts(depot)
 			local from, to = --[[(loops[inserter.unit_number] ~= nil) and nil,nil or --]]getLoopFedStorages(depot, inserter)
 			if from and to then
 				--game.print("Found looping inserter  @ " .. inserter.position.x .. ", " .. inserter.position.y)
-				loops[inserter.unit_number] = {type = "loop", entity = inserter, from = from, to = to, wire = wire}
+				loops[inserter.unit_number] = {type = "loop", entity = inserter, from = from, to = to}
 			elseif inserter.drop_target and inserter.drop_target == storage and not (inserter.pickup_target and depot.storages[inserter.pickup_target.unit_number]) then
 				--game.print("Inserter is feeding.")
 				table.insert(feeds, inserter)

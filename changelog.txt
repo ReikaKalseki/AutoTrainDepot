@@ -1,0 +1,188 @@
+---------------------------------------------------------------------------------------------------
+Version: 1.101.148
+Date: Oct 31 2022
+  Bugfixes:
+    - Fixed depots sometimes failing to detect inputs and allowing over-limit item insertion
+    - Fixed detection of bob pink logistics science
+  New Features:
+    - Added "mixed-type insertion" depot tech and capability
+    - Added "smart filtering" depot tech and capability
+    - Added a new tier of "depot slot count" tech at 250, before the final 1000
+    - Added options for the sound component of each of the two train alerts
+  Misc Changes:
+    - Cheapened slot count research
+    - Reduced chance of item spillage from balancing gone wrong
+---------------------------------------------------------------------------------------------------
+Version: 1.101.144
+Date: Oct 7 2022
+  New Features:
+    - Added icons for technology effects
+    - Added missing locale for "inserter-unloader" setting
+---------------------------------------------------------------------------------------------------
+Version: 1.101.105
+Date: Apr 28 2021
+  Misc Changes:
+    - 1.1 Update
+    - Further redesign of depot handling of inserters and cleaning thereof to improve reliability
+---------------------------------------------------------------------------------------------------
+Version: 1.018.24
+Date: Nov 15 2020
+  Bugfixes:
+    - Fixed unloader and reloader sleeping forever at times
+  New Features:
+    - Added custom sound for unloader
+    - Added option to make unloader an inserter type entity rather than a loader
+  Misc Changes:
+    - Changed unloader recipe
+    - Tweaked some technology costs
+    - Unloader now uses large amounts of power
+---------------------------------------------------------------------------------------------------
+Version: 1.018.18
+Date: Aug 10 2020
+  Misc Changes:
+    - Depots now have a GUI of their own
+    - Redesigned custom train GUI
+---------------------------------------------------------------------------------------------------
+Version: 1.018.12
+Date: Jul 5 2020
+  New Features:
+    - Added more missing locale
+  Misc Changes:
+    - Reworked technology costs
+---------------------------------------------------------------------------------------------------
+Version: 1.018.6
+Date: Jun 15 2020
+  New Features:
+    - Added commands to manipulate depot stop cache
+    - Added missing icons and locale to smart train stop
+    - Added some bobmod recipe compat
+    - Added wagon slot count functionality, tiering, and upgrade tech
+  Misc Changes:
+    - Created a custom train stop type to be used with depots
+    - Significantly increased deadlock alert trigger time
+---------------------------------------------------------------------------------------------------
+Version: 1.018.5
+Date: Jun 11 2020
+  Bugfixes:
+    - Fixed more large warehouse handling
+    - Fixed more missing locale
+    - Fixed references to removed train alerts
+---------------------------------------------------------------------------------------------------
+Version: 1.018.2
+Date: Jun 7 2020
+  Misc Changes:
+    - More unloader fixes
+---------------------------------------------------------------------------------------------------
+Version: 1.018.1
+Date: May 29 2020
+  Misc Changes:
+    - Update to 0.18
+---------------------------------------------------------------------------------------------------
+Version: 1.017.12
+Date: Sep 30 2019
+  Bugfixes:
+    - Fixed issues with train unloader and rapid loader recipe and technology
+    - Fixed more issues in 0.17 update, mostly in GUI code
+---------------------------------------------------------------------------------------------------
+Version: 1.017.6
+Date: Jun 6 2019
+  Bugfixes:
+    - Fixed issues in 0.17 update
+  Misc Changes:
+    - Moved shared code to Dragon Industries
+---------------------------------------------------------------------------------------------------
+Version: 1.017.1
+Date: Mar 23 2019
+  Misc Changes:
+    - Updated to 0.17
+---------------------------------------------------------------------------------------------------
+Version: 1.016.180
+Date: Nov 28 2018
+  Bugfixes:
+    - Fixed crash due to science pack 3 ingredient duplication
+---------------------------------------------------------------------------------------------------
+Version: 1.016.172
+Date: Oct 20 2018
+  Bugfixes:
+    - Fixed a script error with removing fluid depots connected to some pumps that were previously fast-replaced
+  New Features:
+    - Added a method to keep a given input to a depot always on - change the condition to the "Always" signal
+  Misc Changes:
+    - Tweaked storage balancing again - it now runs when there is not a train in the station, but only rarely
+---------------------------------------------------------------------------------------------------
+Version: 1.016.164
+Date: Oct 15 2018
+  New Features:
+    - Added Smart Train Stop and associated signals and behavior
+    - Added Station Bypass Beacon and associated logic
+---------------------------------------------------------------------------------------------------
+Version: 1.016.160
+Date: Oct 10 2018
+  Bugfixes:
+    - Fixed depots only having as many controllable inputs as filtered items
+  New Features:
+    - Added locale support to GUI options
+    - Added option to make trains not pathfind through occupied stations or immobile trains
+  Misc Changes:
+    - Changed large warehouse recipes
+    - Copying train entity data now also copies custom GUI data
+    - Depot balancing now runs more often when there is a train at the loading station, and never when there is not
+    - Improved performance with tick code
+    - Recreated Rapid Train Loader
+    - Trains can now have dynamic item filters for their cargo wagons, selected on a per-station and per-car basis
+    - Trains now preserve most of their data when modified (only the replaced cars are cleared)
+    - Tweaked tech costs
+---------------------------------------------------------------------------------------------------
+Version: 1.016.148
+Date: Sep 18 2018
+  Bugfixes:
+    - Fixed crash without BobMods
+  Misc Changes:
+    - Depot can now handle winding input belts
+    - Made "no fuel" train alert more selective
+---------------------------------------------------------------------------------------------------
+Version: 1.016.144
+Date: Sep 10 2018
+  Bugfixes:
+    - Fixed crash with Picker Extended
+  Misc Changes:
+    - Redesigned capability and technology system - there is now only one depot type, with capabilities unlocked by researches
+    - Trains can now be given Display Names
+---------------------------------------------------------------------------------------------------
+Version: 1.016.138
+Date: Sep 7 2018
+  New Features:
+    - Added "train deadlock" and "no path" alerts to indicate when a train has entered am undesirable state and requires manual intervention
+---------------------------------------------------------------------------------------------------
+Version: 1.016.135
+Date: Sep 5 2018
+  Misc Changes:
+    - Depots now manage output inserters to trains as well, 'resetting' them when a station changes trains
+---------------------------------------------------------------------------------------------------
+Version: 1.016.133
+Date: Sep 3 2018
+  New Features:
+    - Added ability to choose via GUI whether depots control the red/exclusion filter for wagons, to go with 132's change
+---------------------------------------------------------------------------------------------------
+Version: 1.016.132
+Date: Sep 2 2018
+  New Features:
+    - Added ability for cargo wagons to be marked as "fill at depot", which the depot controller will automatically handle to prevent output-type cars from being re-filled at the input side of the depot
+    - Added basic depot type, available earlier game
+  Rebalancing:
+    - Rebalanced technology dependencies and recipes
+---------------------------------------------------------------------------------------------------
+Version: 1.016.128
+Date: Aug 24 2018
+  New Features:
+    - Added a new element to train GUIs to allow for liquid routing control
+    - Added fluid depot controller, to allow for the management of fluid routing at a liquid depot for up to six liquid types per depot
+  Misc Changes:
+    - Cleaned up train handling logic and added sanity checks
+---------------------------------------------------------------------------------------------------
+Version: 1.016.120
+Date: Aug 20 2018
+  Bugfixes:
+    - Fixed missing handling for adding large versions of storage logic warehouses
+  New Features:
+    - Added some missing locale

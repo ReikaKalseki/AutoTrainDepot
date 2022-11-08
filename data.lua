@@ -28,7 +28,7 @@ data:extend({
 		icon = "__AutoTrainDepot__/graphics/icons/always.png",
 		icon_size = 32,
 		subgroup = "virtual-signal-special",
-		order = name,
+		order = "always-on",
 		hidden = true,
 	},
 	{

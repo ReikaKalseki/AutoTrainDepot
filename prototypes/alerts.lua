@@ -6,7 +6,7 @@ data:extend({
 	icon_size = 64,
 	icon_mipmaps = 0,
 	subgroup = "virtual-signal-special",
-	order = name,
+	order = "train-alert-deadlock",
 	hidden = true,
 },
 {
@@ -16,7 +16,7 @@ data:extend({
 	icon_size = 64,
 	icon_mipmaps = 0,
 	subgroup = "virtual-signal-special",
-	order = name,
+	order = "train-alert-nopath",
 	hidden = true,
 },--[[ vanilla now
 {
