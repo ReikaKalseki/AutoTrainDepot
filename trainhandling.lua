@@ -249,11 +249,7 @@ local function createBypassGui(depot, player, entry)
 		--game.print("Trying " .. train .. " from " .. entity.name .. " # " .. entity.unit_number)
 		local obj = getTrainByID(player.force, player.surface, train)
 		if not obj then
-			invalidateTrain(depot, entry)
-			entry = getOrCreateTrainEntry(depot, entity)
-			train = entry.train
-			obj = getTrainByID(player.force, player.surface, train)
-			if not obj then game.print("still no train with id " .. train .. "!!") end
+			return
 		end
 		assert(obj ~= nil)
 		local guis = {}
@@ -308,11 +304,7 @@ local function createFilterGui(depot, player, entry)
 		--game.print("Trying " .. train .. " from " .. entity.name .. " # " .. entity.unit_number)
 		local obj = getTrainByID(player.force, player.surface, train)
 		if not obj then
-			invalidateTrain(depot, entry)
-			entry = getOrCreateTrainEntry(depot, entity)
-			train = entry.train
-			obj = getTrainByID(player.force, player.surface, train)
-			if not obj then game.print("still no train with id " .. train .. "!!") end
+			return
 		end
 		assert(obj ~= nil)
 		local guis = {}

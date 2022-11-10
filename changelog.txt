@@ -9,9 +9,10 @@ Date: Oct 31 2022
     - Added "smart filtering" depot tech and capability
     - Added a new tier of "depot slot count" tech at 250, before the final 1000
     - Added options for the sound component of each of the two train alerts
+  Rebalancing:
+    - Reduced chance of item spillage from balancing gone wrong
   Misc Changes:
     - Cheapened slot count research
-    - Reduced chance of item spillage from balancing gone wrong
 ---------------------------------------------------------------------------------------------------
 Version: 1.101.144
 Date: Oct 7 2022
@@ -39,8 +40,9 @@ Date: Nov 15 2020
 ---------------------------------------------------------------------------------------------------
 Version: 1.018.18
 Date: Aug 10 2020
-  Misc Changes:
+  New Features:
     - Depots now have a GUI of their own
+  Misc Changes:
     - Redesigned custom train GUI
 ---------------------------------------------------------------------------------------------------
 Version: 1.018.12
@@ -78,10 +80,14 @@ Date: May 29 2020
   Misc Changes:
     - Update to 0.18
 ---------------------------------------------------------------------------------------------------
-Version: 1.017.12
-Date: Sep 30 2019
+Version: 1.017.15
+Date: Jul 1 2019
   Bugfixes:
     - Fixed issues with train unloader and rapid loader recipe and technology
+---------------------------------------------------------------------------------------------------
+Version: 1.017.12
+Date: Jun 17 2019
+  Bugfixes:
     - Fixed more issues in 0.17 update, mostly in GUI code
 ---------------------------------------------------------------------------------------------------
 Version: 1.017.6
@@ -123,13 +129,13 @@ Date: Oct 10 2018
   New Features:
     - Added locale support to GUI options
     - Added option to make trains not pathfind through occupied stations or immobile trains
+    - Trains can now have dynamic item filters for their cargo wagons, selected on a per-station and per-car basis
   Misc Changes:
     - Changed large warehouse recipes
     - Copying train entity data now also copies custom GUI data
     - Depot balancing now runs more often when there is a train at the loading station, and never when there is not
     - Improved performance with tick code
     - Recreated Rapid Train Loader
-    - Trains can now have dynamic item filters for their cargo wagons, selected on a per-station and per-car basis
     - Trains now preserve most of their data when modified (only the replaced cars are cleared)
     - Tweaked tech costs
 ---------------------------------------------------------------------------------------------------
