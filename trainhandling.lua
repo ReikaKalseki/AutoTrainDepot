@@ -407,17 +407,17 @@ function setTrainGui(depot, player, entity)
 		local guis = {}
 		local container = player.gui.left.add{type = "flow", name = "traingui-container", direction = "horizontal"}
 		local root = container.add{type = "frame", name = "traingui-root", direction = "vertical"}
-		local buttons = container.add{type = "frame", name = "traingui-buttons", direction = "vertical"}
 		--NOT VALID IN 0.17--buttons.style.align = "center"
 		root.tooltip = "Train #" .. train
 		--root.title_top_padding = 0
 		--root.title_bottom_padding = 0
-		local header0 = root.add{type = "textfield", name = "traingui-title", text = entry.displayName and entry.displayName or "TrainName"}
-		header0.style.height = 34
-		header0.style.width = 220
-		--NOT VALID IN 0.17--header0.style.align = "center"
+		local namefield = root.add{type = "textfield", name = "traingui-title", text = entry.displayName and entry.displayName or "TrainName"}
+		namefield.style.height = 34
+		namefield.style.width = 220
+		--NOT VALID IN 0.17--namefield.style.align = "center"
+		local buttons = root.add{type = "flow", name = "traingui-buttons", direction = "horizontal"}
 		local bypass = getTrainBypassSelfData(depot, obj)
-		local header1 = root.add{type = "checkbox", name = "traingui-bypass-toggle", caption = "Skip Fill Depot if Almost Full", state = bypass and bypass.active or false, tooltip = {"depot-gui-tooltip.bypass-toggle"}}
+		local skipper = root.add{type = "checkbox", name = "traingui-bypass-toggle", caption = "Skip Fill Depot if Almost Full", state = bypass and bypass.active or false, tooltip = {"depot-gui-tooltip.bypass-toggle"}}
 		local header = root.add{type = "flow", name = "traingui-header"}
 		header.style.height = 24
 		local spacer = header.add{type = "label", name = "traingui-header-spacer", caption = "Per-Car Controls:"}
@@ -492,14 +492,18 @@ function setTrainGui(depot, player, entity)
 			end
 		end
 		
-		if obj.schedule and player.force.technologies["depot-cargo-filters"].researched then
-			local button = buttons.add{type = "button", name = "traingui-filters", caption = "Filters", mouse_button_filter = {"left"}}
-			--NOT VALID IN 0.17--button.style.align = "center"
-		end
-		
-		if obj.schedule and player.force.technologies["bypass-beacons"].researched then
-			local button = buttons.add{type = "button", name = "traingui-bypass", caption = "Bypass", mouse_button_filter = {"left"}}
-			--NOT VALID IN 0.17--button.style.align = "center"
+		if obj.schedule then
+			if player.force.technologies["depot-cargo-filters"].researched then
+				local button = buttons.add{type = "button", name = "traingui-filters", caption = "Filters", mouse_button_filter = {"left"}}
+				--NOT VALID IN 0.17--button.style.align = "center"
+				button.style.width = 80
+			end
+			
+			if player.force.technologies["bypass-beacons"].researched then
+				local button = buttons.add{type = "button", name = "traingui-bypass", caption = "Bypass", mouse_button_filter = {"left"}}
+				--NOT VALID IN 0.17--button.style.align = "center"
+				button.style.width = 80
+			end
 		end
 		
 		if not entry.guis then entry.guis = {} end
@@ -733,11 +737,12 @@ function handleTrainStateChange(train)
 		if force.technologies["depot-cargo-filters"].researched then
 			local filters = getTrainItemFilterData(depot, train)
 			if filters then
-				for _,car in pairs(entry.cars) do
+				for i,car in ipairs(entry.cars) do
 					if car.type == "cargo-wagon" and filters[car.index] then
 						local entity = train.carriages[car.position]
 						local filter = filters[car.index][stationIndex]
 						local inv = entity.get_inventory(defines.inventory.cargo_wagon)
+						--game.print("Filtering car #" .. i .. " in train " .. entry.name .. ": " .. filter)
 						if inv and filter ~= "skip-filter-swap" then
 							for i = 1,#inv do
 								if filter == nil or filter == "nil" then

@@ -1,4 +1,15 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.152.1
+Date: Nov 15 2022
+	- Moved "Filters" and "Bypass" train GUI buttons out from under the inventory/main train GUI
+	- Made rapid train loader faster when bobplates is installed
+	- Added more tiers of depot-slot and wagon-slot techs before the final one
+---------------------------------------------------------------------------------------------------
+Version: 1.151.1
+Date: Nov 5 2022
+	- Major Code Cleanup
+	- Improved "multi item choice" logic
+---------------------------------------------------------------------------------------------------
 Version: 1.148.1
 Date: Oct 31 2022
 	- Added options for the sound component of each of the two train alerts

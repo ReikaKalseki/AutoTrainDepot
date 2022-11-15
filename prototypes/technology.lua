@@ -173,7 +173,7 @@ for i = 1,#SLOT_COUNT_TIERS do
 	if i >= 6 then
 		table.insert(pack, {"utility-science-pack", 1})
 	end
-	if i >= 7 then
+	if i >= 8 then
 		table.insert(pack, {"space-science-pack", 1})
 	end
 	local dep = {}
@@ -199,6 +199,9 @@ for i = 1,#WAGON_SLOT_TIERS do
 	end
 	if i >= 6 then
 		table.insert(pack, {"utility-science-pack", 1})
+	end
+	if i >= 8 then
+		table.insert(pack, {"space-science-pack", 1})
 	end
 	local dep = {}
 	if i == 4 then

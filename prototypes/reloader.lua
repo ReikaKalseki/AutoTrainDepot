@@ -2,7 +2,7 @@ require "config"
 
 require "__DragonIndustries__.sprites"
 
-local speedFactor = 0.2
+local speedFactor = mods["bobplates"] and 0.5 or 0.2
 local powerConsumption = 900 --in kW
 
 if not Config.reloader then return end

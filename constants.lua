@@ -4,7 +4,7 @@ require "__DragonIndustries__.strings"
 ITEM_COUNT_TIERS = {5, 10, 25, 50, 100, 200, 500, 1000}
 
 --no research = 1 slot per item type
-SLOT_COUNT_TIERS = {2, 5, 10, 25, 50, 100, 250, 1000}
+SLOT_COUNT_TIERS = {2, 5, 10, 25, 50, 100, 250, 500, 1000}
 
 CATEGORY_FRACTIONS = {
 	["intermediate-products"] = 0.5, --includes bob
@@ -24,4 +24,4 @@ function getFractionCategoryForItem(item)
 	return "other"
 end
 
-WAGON_SLOT_TIERS = {2, 5, 10, 20, 40, 200} --gui is 10 slots wide; no research = 1 slot per wagon; 200 slots is basically "any"
+WAGON_SLOT_TIERS = {2, 5, 10, 20, 40, 80, 120, 200} --gui is 10 slots wide; no research = 1 slot per wagon; 200 slots is basically "any"

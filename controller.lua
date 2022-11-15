@@ -712,9 +712,11 @@ local function getMaxSlotsForWagon(depot, entry, train, station, wagon)
 		local tech = force.technologies["depot-wagon-slot-" .. i]
 		if not tech then error("No such tech index: depot-wagon-slot-" .. i) end
 		if tech.researched then
+			--game.print("Tech level " .. i .. " - " .. WAGON_SLOT_TIERS[i])
 			return WAGON_SLOT_TIERS[i]
 		end
 	end
+	--game.print("No techs - 1")
 	return 1
 end
 
